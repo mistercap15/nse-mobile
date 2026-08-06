@@ -88,8 +88,9 @@ export default function AboutScreen() {
   return (
     <SafeAreaView edges={["bottom"]} style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView contentContainerStyle={{ padding: Spacing.md, paddingBottom: TAB_BAR_CLEARANCE }}>
-        {/* Identity */}
-        <View style={{ alignItems: "center", paddingVertical: Spacing.lg }}>
+        {/* Identity. Only bottom padding — the ScrollView already supplies the
+            top inset, and doubling them left a visible gap under the header. */}
+        <View style={{ alignItems: "center", paddingBottom: Spacing.lg }}>
           <View
             style={{
               width: 62,
