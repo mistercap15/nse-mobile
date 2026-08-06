@@ -2,6 +2,7 @@ import React from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Constants from "expo-constants";
+import * as Updates from "expo-updates";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Badge, Button, Card, Label, SectionHeader } from "@/components/ui";
 import { signOut } from "@/lib/client";
@@ -210,6 +211,28 @@ export default function AboutScreen() {
               value={API_BASE.replace(/^https?:\/\//, "")}
               valueColor={IS_LOCAL_API ? c.amber : undefined}
             />
+            {/* Which JS bundle is actually running. Without this there's no way
+                to tell an OTA update that landed from one that hasn't yet —
+                updates download in the background and apply on the NEXT launch. */}
+            <Row
+              icon="cube-outline"
+              label="JS bundle"
+              value={
+                Updates.isEmbeddedLaunch
+                  ? "embedded (as shipped)"
+                  : Updates.updateId
+                    ? `OTA ${Updates.updateId.slice(0, 8)}`
+                    : "development"
+              }
+              valueColor={Updates.isEmbeddedLaunch ? c.dim : c.green}
+            />
+            {Updates.createdAt ? (
+              <Row
+                icon="calendar-outline"
+                label="Bundle date"
+                value={new Date(Updates.createdAt).toLocaleString("en-IN")}
+              />
+            ) : null}
           </View>
 
           <Text style={{ color: c.dim, fontSize: 10, marginTop: Spacing.sm, lineHeight: 15 }}>

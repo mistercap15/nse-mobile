@@ -1,22 +1,25 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Keyboard, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Keyboard, Platform, StyleSheet, TextInput, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Radius, Spacing, useColors } from "@/lib/theme";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Six-box PIN entry. A single hidden TextInput drives six rendered boxes — that
-// keeps the OS keyboard, paste and autofill behaving normally while still
-// looking like discrete digits. Auto-submits on the sixth digit.
+// Six-box PIN entry. One real TextInput is stretched invisibly OVER the six
+// rendered boxes, so a tap anywhere on them lands on the input itself and the
+// OS opens the keyboard natively.
 //
-// Re-focusing needs care: dismissing the keyboard (swipe-down on iOS, back
-// button on Android) hides it WITHOUT blurring the field, and TextInput.focus()
-// is a no-op while RN thinks the field is already focused. Left alone, the
-// keyboard can never be summoned back. Two things keep the two in sync:
-// a keyboardDidHide listener that blurs for real, and a blur→focus cycle on tap
-// as a backstop.
+// The obvious alternative — a 1×1 hidden input plus a Pressable calling
+// focus() — cannot survive a dismissed keyboard: swiping down (iOS) or pressing
+// back (Android) hides the keyboard WITHOUT blurring the field, and focus() is
+// a no-op while RN believes the field is still focused, so the keyboard can
+// never be summoned back. Letting the touch reach the native view sidesteps
+// that entirely: tapping a focused input re-presents the IME by OS behaviour,
+// with no state for us to get wrong.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const LENGTH = 6;
+const BOX_W = 44;
+const BOX_H = 54;
 
 export function PinInput({
   onComplete,
@@ -37,29 +40,12 @@ export function PinInput({
     if (error) setValue("");
   }, [error]);
 
-  // The keyboard going away must also mean "not focused", or the next tap's
-  // focus() is swallowed as redundant.
+  // Keep our idea of focus honest when the keyboard is dismissed, so the caret
+  // ring doesn't imply the field is still taking input.
   useEffect(() => {
-    const sub = Keyboard.addListener("keyboardDidHide", () => {
-      if (inputRef.current?.isFocused()) inputRef.current.blur();
-      setFocused(false);
-    });
+    const sub = Keyboard.addListener("keyboardDidHide", () => setFocused(false));
     return () => sub.remove();
   }, []);
-
-  const focusInput = useCallback(() => {
-    if (disabled) return;
-    const input = inputRef.current;
-    if (!input) return;
-    if (input.isFocused()) {
-      // Already focused as far as RN is concerned but the keyboard is down —
-      // bounce the focus so the OS is asked to present it again.
-      input.blur();
-      setTimeout(() => inputRef.current?.focus(), 50);
-    } else {
-      input.focus();
-    }
-  }, [disabled]);
 
   // Open the keyboard on mount, once the screen has settled.
   useEffect(() => {
@@ -78,20 +64,10 @@ export function PinInput({
   };
 
   return (
-    <Pressable
-      onPress={focusInput}
-      style={styles.wrap}
-      accessibilityRole="button"
-      accessibilityLabel="Enter your six digit PIN"
-      // Generous target: the boxes are small, and this is the only way back to
-      // the keyboard once it's been dismissed.
-      hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-    >
-      <View style={styles.boxes} pointerEvents="none">
+    <View style={styles.wrap}>
+      <View style={styles.boxes}>
         {Array.from({ length: LENGTH }, (_, i) => {
           const filled = i < value.length;
-          // Only mark the caret position while actually focused, so a dismissed
-          // keyboard doesn't leave a box looking like it's accepting input.
           const isNext = focused && i === value.length;
           return (
             <View
@@ -118,6 +94,7 @@ export function PinInput({
         })}
       </View>
 
+      {/* Invisible but real, and on top: this is the tap target. */}
       <TextInput
         ref={inputRef}
         value={value}
@@ -130,23 +107,27 @@ export function PinInput({
         maxLength={LENGTH}
         editable={!disabled}
         caretHidden
-        style={styles.hidden}
+        selectionColor="transparent"
+        accessibilityLabel="Enter your six digit PIN"
+        style={[StyleSheet.absoluteFill, styles.overlay]}
       />
-    </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { paddingVertical: Spacing.sm },
+  wrap: { alignSelf: "center", paddingVertical: Spacing.sm },
   boxes: { flexDirection: "row", gap: Spacing.sm, justifyContent: "center" },
   box: {
-    width: 44,
-    height: 54,
+    width: BOX_W,
+    height: BOX_H,
     borderRadius: Radius.md,
     borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
-  // Kept on-screen but invisible: a display:none input can't hold focus in RN.
-  hidden: { position: "absolute", opacity: 0, width: 1, height: 1 },
+  // Transparent rather than opacity:0 — some Android builds skip touch
+  // dispatch to fully transparent views, and the text must stay invisible
+  // regardless since the boxes below are the real display.
+  overlay: { color: "transparent", backgroundColor: "transparent", fontSize: 1 },
 });
