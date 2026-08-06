@@ -3,6 +3,8 @@ import { Pressable } from "react-native";
 import { Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { TabBar, type TabMeta } from "@/components/TabBar";
+import { HomeHeaderTitle } from "@/components/HeaderTitle";
+import { APP_TITLE } from "@/lib/developer";
 import { useColors } from "@/lib/theme";
 import { useAppStore } from "@/lib/store";
 import { useUpstoxForegroundRefresh } from "@/components/ConnectionBanner";
@@ -10,7 +12,7 @@ import { useUpstoxForegroundRefresh } from "@/components/ConnectionBanner";
 // Grouped like the web sidebar: Overview / Seasonality / Trade Setups /
 // Research, plus About for app info and settings.
 const TABS: Record<string, TabMeta & { header: string }> = {
-  index:    { label: "Home",     header: "NSERank",      active: "home",           inactive: "home-outline" },
+  index:    { label: "Home",     header: APP_TITLE,      active: "home",           inactive: "home-outline" },
   rankings: { label: "Rankings", header: "Rankings",     active: "podium",         inactive: "podium-outline" },
   setups:   { label: "Setups",   header: "Trade Setups", active: "flash",          inactive: "flash-outline" },
   research: { label: "Research", header: "Research",     active: "analytics",      inactive: "analytics-outline" },
@@ -50,7 +52,13 @@ export default function TabLayout() {
         <Tabs.Screen
           key={name}
           name={name}
-          options={{ title: TABS[name].label, headerTitle: TABS[name].header }}
+          options={{
+            title: TABS[name].label,
+            // Home carries the app name + byline; the rest are plain labels.
+            ...(name === "index"
+              ? { headerTitle: () => <HomeHeaderTitle />, headerTitleAlign: "center" as const }
+              : { headerTitle: TABS[name].header }),
+          }}
         />
       ))}
     </Tabs>

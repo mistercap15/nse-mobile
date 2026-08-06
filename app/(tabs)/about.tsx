@@ -6,7 +6,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { Badge, Button, Card, Label, SectionHeader } from "@/components/ui";
 import { signOut } from "@/lib/client";
 import { API_BASE, IS_LOCAL_API } from "@/lib/config";
-import { DEVELOPER } from "@/lib/developer";
+import { APP_TITLE, DEVELOPER } from "@/lib/developer";
 import { useSession, useUpstoxStatus } from "@/lib/queries";
 import { useUpstoxConnect } from "@/lib/useUpstoxConnect";
 import { useAppStore } from "@/lib/store";
@@ -105,9 +105,14 @@ export default function AboutScreen() {
             <Ionicons name="trending-up" size={28} color={c.accent} />
           </View>
           <Text style={{ color: c.text, fontSize: 24, fontWeight: "800", marginTop: Spacing.md }}>
-            NSERank<Text style={{ color: c.accent }}>.</Text>
+            {APP_TITLE}
+            <Text style={{ color: c.accent }}>.</Text>
           </Text>
-          <Text style={{ color: c.dim, fontSize: 12, marginTop: 4 }}>
+          <Text style={{ fontSize: 13, fontWeight: "700", marginTop: 3 }}>
+            <Text style={{ color: c.dim }}>by </Text>
+            <Text style={{ color: c.accent }}>{DEVELOPER.name}</Text>
+          </Text>
+          <Text style={{ color: c.dim, fontSize: 12, marginTop: 6 }}>
             F&amp;O seasonality &amp; trade setups · v{version}
           </Text>
         </View>

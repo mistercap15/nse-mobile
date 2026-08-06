@@ -16,7 +16,6 @@ import {
   StatRow,
 } from "@/components/ui";
 import { useRankings, useSession } from "@/lib/queries";
-import { APP_TITLE, DEVELOPER } from "@/lib/developer";
 import { useAppStore } from "@/lib/store";
 import { MONTH_FULL, currentMonthIST, num, pct, untilExpiry } from "@/lib/format";
 import { Radius, Spacing, TAB_BAR_CLEARANCE, deltaColor, useColors } from "@/lib/theme";
@@ -62,22 +61,10 @@ export default function HomeScreen() {
       >
         <ConnectionBanner />
 
-        {/* Title over two lines — "NSE Ranking by Khilan Patel" on one line
-            would wrap awkwardly at this size on a 375pt screen. */}
-        <Text style={{ color: c.text, fontSize: 30, fontWeight: "800", letterSpacing: -0.5 }}>
-          {APP_TITLE}
-          <Text style={{ color: c.accent }}>.</Text>
-        </Text>
-        <Text style={{ fontSize: 15, fontWeight: "700", marginTop: 2 }}>
-          <Text style={{ color: c.dim }}>by </Text>
-          <Text style={{ color: c.accent }}>{DEVELOPER.name}</Text>
-        </Text>
-
-        <View style={{ height: Spacing.md }} />
-
         <Label>Current month</Label>
-        <Text style={{ color: c.text, fontSize: 22, fontWeight: "800", marginTop: 4 }}>
+        <Text style={{ color: c.text, fontSize: 30, fontWeight: "800", marginTop: 6 }}>
           {MONTH_FULL[month - 1]}
+          <Text style={{ color: c.accent }}>.</Text>
         </Text>
         <Text style={{ color: c.dim, fontSize: 12, marginTop: 4 }}>
           {data?.calendar?.expiry

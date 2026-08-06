@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiError } from "@/lib/client";
 import { IS_LOCAL_API, API_BASE } from "@/lib/config";
+import { APP_TITLE, DEVELOPER } from "@/lib/developer";
 import { useLogin } from "@/lib/queries";
 import { Spacing, useColors } from "@/lib/theme";
 import { PinInput } from "./PinInput";
@@ -66,7 +67,12 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }
           keyboardShouldPersistTaps="handled"
         >
           <Text style={[styles.brand, { color: c.text }]}>
-            NSERank<Text style={{ color: c.accent }}>.</Text>
+            {APP_TITLE}
+            <Text style={{ color: c.accent }}>.</Text>
+          </Text>
+          <Text style={styles.byline}>
+            <Text style={{ color: c.dim }}>by </Text>
+            <Text style={{ color: c.accent }}>{DEVELOPER.name}</Text>
           </Text>
           <Text style={[styles.tagline, { color: c.dim }]}>
             F&O seasonality &amp; trade setups
@@ -112,7 +118,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   content: { flexGrow: 1, justifyContent: "center", padding: Spacing.xl },
   brand: { fontSize: 34, fontWeight: "800", textAlign: "center", letterSpacing: -0.5 },
-  tagline: { fontSize: 12, textAlign: "center", marginTop: 6, letterSpacing: 0.6 },
+  byline: { fontSize: 14, fontWeight: "700", textAlign: "center", marginTop: 4 },
+  tagline: { fontSize: 12, textAlign: "center", marginTop: 8, letterSpacing: 0.6 },
   pinArea: { marginTop: Spacing.xxl },
   prompt: { fontSize: 13, textAlign: "center", marginBottom: Spacing.lg, fontWeight: "600" },
   messageSlot: { minHeight: 34, justifyContent: "center", marginTop: Spacing.md },
