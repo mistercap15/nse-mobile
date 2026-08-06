@@ -1,24 +1,99 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import React, { useCallback, useEffect, useState } from "react";
+import { View } from "react-native";
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import * as SplashScreen from "expo-splash-screen";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { onSessionExpired } from "@/lib/client";
+import { loadSession, peekSession } from "@/lib/session";
+import { useColors } from "@/lib/theme";
+import { useAppStore } from "@/lib/store";
+import { LoginScreen } from "@/components/LoginScreen";
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // A 401 clears the session and shows the PIN gate; a 429 is a deliberate
+      // lockout. Retrying either is noise.
+      retry: (count, error) => {
+        const status = (error as { status?: number })?.status;
+        if (status === 401 || status === 429) return false;
+        return count < 2;
+      },
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+// ─────────────────────────────────────────────────────────────────────────────
+// Root gate. Everything past this point assumes a valid session token, so the
+// PIN screen renders in place of the navigator rather than as a route — there is
+// no authenticated screen to briefly flash before a redirect.
+// ─────────────────────────────────────────────────────────────────────────────
+function Gate() {
+  const colors = useColors();
+  const isDark = useAppStore((s) => s.isDark);
+  const [ready, setReady] = useState(false);
+  const [authed, setAuthed] = useState(false);
+
+  useEffect(() => {
+    loadSession().then((token) => {
+      setAuthed(Boolean(token));
+      setReady(true);
+      SplashScreen.hideAsync().catch(() => {});
+    });
+  }, []);
+
+  // The client clears the stored token on any 401 (i.e. past 03:30 IST) and
+  // notifies here, which drops straight back to the PIN screen.
+  useEffect(() => onSessionExpired(() => setAuthed(false)), []);
+
+  const handleAuthed = useCallback(() => {
+    setAuthed(Boolean(peekSession()));
+  }, []);
+
+  if (!ready) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <>
+      <StatusBar style={isDark ? "light" : "dark"} />
+      {authed ? (
+        <Stack
+          screenOptions={{
+            headerStyle: { backgroundColor: colors.bg },
+            headerTintColor: colors.accent,
+            headerTitleStyle: { fontWeight: "800", fontSize: 17, color: colors.text },
+            contentStyle: { backgroundColor: colors.bg },
+            headerShadowVisible: false,
+            headerBackButtonDisplayMode: "minimal",
+          }}
+        >
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="stock/[symbol]" options={{ title: "Stock" }} />
+          <Stack.Screen name="research/screener" options={{ title: "Screener" }} />
+          <Stack.Screen name="research/sector-rotation" options={{ title: "Sector Rotation" }} />
+          <Stack.Screen name="research/calendar" options={{ title: "Calendar" }} />
+          <Stack.Screen name="research/backtest" options={{ title: "Backtest" }} />
+        </Stack>
+      ) : (
+        <LoginScreen onAuthenticated={handleAuthed} />
+      )}
+    </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <Gate />
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

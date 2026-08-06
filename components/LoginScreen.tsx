@@ -1,0 +1,121 @@
+import React, { useEffect, useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { ApiError } from "@/lib/client";
+import { IS_LOCAL_API, API_BASE } from "@/lib/config";
+import { useLogin } from "@/lib/queries";
+import { Spacing, useColors } from "@/lib/theme";
+import { PinInput } from "./PinInput";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PIN gate. Six digits, auto-submitting on the sixth.
+//
+// The backend locks out after 5 wrong attempts with an escalating cooldown and
+// returns 429 + retryAfter; we count that down in place rather than letting the
+// user keep tapping into a wall.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
+  const c = useColors();
+  const login = useLogin();
+  const [message, setMessage] = useState<string | null>(null);
+  const [lockedFor, setLockedFor] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  // Tick the lockout down so the user can see when they may try again.
+  useEffect(() => {
+    if (lockedFor <= 0) return;
+    const t = setTimeout(() => setLockedFor((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [lockedFor]);
+
+  const submit = async (pin: string) => {
+    setMessage(null);
+    setFailed(false);
+    try {
+      await login.mutateAsync(pin);
+      onAuthenticated();
+    } catch (e) {
+      setFailed(true);
+      if (e instanceof ApiError) {
+        setMessage(e.message);
+        if (e.isLockedOut && e.retryAfter) setLockedFor(e.retryAfter);
+      } else {
+        setMessage("Login failed. Please try again.");
+      }
+    }
+  };
+
+  const locked = lockedFor > 0;
+
+  return (
+    <SafeAreaView style={[styles.safe, { backgroundColor: c.bg }]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={[styles.brand, { color: c.text }]}>
+            NSERank<Text style={{ color: c.accent }}>.</Text>
+          </Text>
+          <Text style={[styles.tagline, { color: c.dim }]}>
+            F&O seasonality &amp; trade setups
+          </Text>
+
+          <View style={styles.pinArea}>
+            <Text style={[styles.prompt, { color: c.soft }]}>
+              {locked ? `Locked — try again in ${lockedFor}s` : "Enter your 6-digit PIN"}
+            </Text>
+
+            <PinInput
+              onComplete={submit}
+              disabled={login.isPending || locked}
+              error={failed}
+            />
+
+            <View style={styles.messageSlot}>
+              {login.isPending ? (
+                <Text style={{ color: c.dim, fontSize: 12 }}>Checking…</Text>
+              ) : message ? (
+                <Text style={{ color: c.red, fontSize: 12, textAlign: "center" }}>{message}</Text>
+              ) : null}
+            </View>
+          </View>
+
+          <View style={styles.footer}>
+            <Text style={[styles.footnote, { color: c.dim }]}>
+              After the PIN you&apos;ll connect Upstox — it expires at 03:30 IST daily.
+            </Text>
+            {IS_LOCAL_API ? (
+              <Text style={[styles.footnote, { color: c.amber, marginTop: 6 }]}>
+                Dev build → {API_BASE}
+              </Text>
+            ) : null}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1 },
+  content: { flexGrow: 1, justifyContent: "center", padding: Spacing.xl },
+  brand: { fontSize: 34, fontWeight: "800", textAlign: "center", letterSpacing: -0.5 },
+  tagline: { fontSize: 12, textAlign: "center", marginTop: 6, letterSpacing: 0.6 },
+  pinArea: { marginTop: Spacing.xxl },
+  prompt: { fontSize: 13, textAlign: "center", marginBottom: Spacing.lg, fontWeight: "600" },
+  messageSlot: { minHeight: 34, justifyContent: "center", marginTop: Spacing.md },
+  footer: { marginTop: Spacing.xxl },
+  footnote: { fontSize: 11, textAlign: "center", lineHeight: 16 },
+});

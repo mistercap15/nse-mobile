@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "nse-mobile",
+    "name": "NSERank",
     "slug": "nse-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "nsemobile",
+    "scheme": "nserank",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -38,11 +38,15 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "apiBase": "https://nse-dashboard-gamma.vercel.app"
     }
   }
 }

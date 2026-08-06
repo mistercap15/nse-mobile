@@ -1,0 +1,248 @@
+import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
+import { ApiError, request } from "./client";
+import { saveSession } from "./session";
+import type {
+  AnalysisResponse,
+  BacktestResponse,
+  CandlesResponse,
+  EarlyEntryResponse,
+  EntryPricesResponse,
+  QuotesResponse,
+  RankingsResponse,
+  SessionResponse,
+  StrategiesResponse,
+  SwingLowResponse,
+  UpstoxStatus,
+} from "./types";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Every server read goes through here. Cache times are set per endpoint by how
+// often the underlying data actually moves:
+//   • seasonality (rankings, analysis, calendar) — from a monthly snapshot, so
+//     it's effectively static within a session.
+//   • daily candles (swing-low, sizing entries) — change only after the close.
+//   • quotes — live, so short.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MINUTE = 60_000;
+
+export const queryKeys = {
+  session: ["session"] as const,
+  upstoxStatus: ["upstox", "status"] as const,
+  rankings: (month: number, sector: string, top: number) =>
+    ["rankings", month, sector, top] as const,
+  swingLow: (refresh: boolean) => ["swing-low", refresh] as const,
+  entryPrices: (month: number, symbols: string[]) =>
+    ["entry-prices", month, symbols.join(",")] as const,
+  analysis: (symbol: string, month?: number) => ["analysis", symbol, month ?? null] as const,
+  stock: (symbol: string) => ["stock", symbol] as const,
+  candles: (symbol: string, days: number) => ["candles", symbol, days] as const,
+  quotes: (symbols: string[]) => ["quotes", symbols.join(",")] as const,
+  earlyEntry: ["early-entry"] as const,
+  backtest: (params: Record<string, unknown>) => ["backtest", params] as const,
+  strategies: ["strategies"] as const,
+};
+
+// ── Auth ────────────────────────────────────────────────────────────────────
+
+interface LoginResult {
+  ok: boolean;
+  next: string;
+  token: string;
+}
+
+/** PIN login. The 429 lockout surfaces as ApiError.retryAfter. */
+export function useLogin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (pin: string) => {
+      const res = await request<LoginResult>("/api/auth/login", {
+        method: "POST",
+        body: { pin },
+        anonymous: true,
+        timeoutMs: 20_000,
+      });
+      // A backend still on the pre-mobile code accepts the PIN and sets a
+      // cookie, but returns no bearer token — which the app can't use. Say so,
+      // rather than failing later on a missing Authorization header.
+      if (!res.token) {
+        throw new ApiError(
+          "This server doesn't support app logins yet — deploy the latest backend.",
+          501,
+        );
+      }
+      await saveSession(res.token);
+      return res;
+    },
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}
+
+export function useSession(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.session,
+    queryFn: () => request<SessionResponse>("/api/auth/session", { timeoutMs: 15_000 }),
+    enabled,
+    retry: false,
+    staleTime: 5 * MINUTE,
+  });
+}
+
+// ── Upstox ──────────────────────────────────────────────────────────────────
+
+export function useUpstoxStatus(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.upstoxStatus,
+    queryFn: () => request<UpstoxStatus>("/api/upstox/status", { timeoutMs: 15_000 }),
+    enabled,
+    retry: false,
+    // Re-checked on app foreground by the connection banner.
+    staleTime: MINUTE,
+  });
+}
+
+/** Fetches the Upstox authorization URL (state pre-signed by the backend). */
+export function useUpstoxAuthUrl() {
+  return useMutation({
+    mutationFn: () =>
+      request<{ url: string }>("/api/upstox/mobile-login", { timeoutMs: 15_000 }),
+  });
+}
+
+// ── Seasonality / rankings ──────────────────────────────────────────────────
+
+export function useRankings(month: number, sector = "ALL", top = 50) {
+  return useQuery({
+    queryKey: queryKeys.rankings(month, sector, top),
+    queryFn: () =>
+      request<RankingsResponse>("/api/rankings", {
+        params: { month, sector, top },
+        timeoutMs: 45_000,
+      }),
+    staleTime: 30 * MINUTE,
+  });
+}
+
+export function useAnalysis(symbol: string | null, month?: number) {
+  return useQuery({
+    queryKey: queryKeys.analysis(symbol ?? "", month),
+    queryFn: () =>
+      request<AnalysisResponse>("/api/analysis", {
+        params: { symbol, month },
+        timeoutMs: 45_000,
+      }),
+    enabled: Boolean(symbol),
+    staleTime: 30 * MINUTE,
+  });
+}
+
+export function useStock(symbol: string | null) {
+  return useQuery({
+    queryKey: queryKeys.stock(symbol ?? ""),
+    queryFn: () =>
+      request<Record<string, unknown>>(`/api/stock/${encodeURIComponent(symbol!)}`, {
+        timeoutMs: 45_000,
+      }),
+    enabled: Boolean(symbol),
+    staleTime: 30 * MINUTE,
+  });
+}
+
+// ── Trade setups ────────────────────────────────────────────────────────────
+
+/**
+ * Whole-universe scan. The first call of the day does real work (~180 symbols
+ * of daily candles) and the backend caches it until the next close, so this is
+ * manual-trigger only — `enabled` is driven by the screen's Scan button.
+ */
+export function useSwingLow(enabled: boolean, refresh = false) {
+  return useQuery({
+    queryKey: queryKeys.swingLow(refresh),
+    queryFn: () =>
+      request<SwingLowResponse>("/api/swing-low", {
+        params: refresh ? { refresh: 1 } : undefined,
+        timeoutMs: 180_000,
+      }),
+    enabled,
+    retry: false,
+    staleTime: 30 * MINUTE,
+  });
+}
+
+export function useEntryPrices(month: number, symbols: string[], enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.entryPrices(month, symbols),
+    queryFn: () =>
+      request<EntryPricesResponse>("/api/sizing/entry-prices", {
+        params: { month, symbols: symbols.join(",") },
+        timeoutMs: 90_000,
+      }),
+    enabled: enabled && symbols.length > 0,
+    retry: false,
+    staleTime: 10 * MINUTE,
+  });
+}
+
+export function useEarlyEntry(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.earlyEntry,
+    queryFn: () => request<EarlyEntryResponse>("/api/early-entry", { timeoutMs: 180_000 }),
+    enabled,
+    retry: false,
+    staleTime: 15 * MINUTE,
+  });
+}
+
+// ── Market data ─────────────────────────────────────────────────────────────
+
+export function useCandles(symbol: string | null, days = 260) {
+  return useQuery({
+    queryKey: queryKeys.candles(symbol ?? "", days),
+    queryFn: () =>
+      request<CandlesResponse>("/api/upstox/candles", {
+        params: { symbol, days },
+        timeoutMs: 45_000,
+      }),
+    enabled: Boolean(symbol),
+    retry: false,
+    staleTime: 30 * MINUTE,
+  });
+}
+
+export function useQuotes(symbols: string[], enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.quotes(symbols),
+    queryFn: () =>
+      request<QuotesResponse>("/api/upstox/quotes", {
+        params: { symbols: symbols.join(",") },
+        timeoutMs: 30_000,
+      }),
+    enabled: enabled && symbols.length > 0,
+    retry: false,
+    staleTime: MINUTE,
+  });
+}
+
+// ── Research ────────────────────────────────────────────────────────────────
+
+export function useBacktest(params: Record<string, unknown>, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.backtest(params),
+    queryFn: () => request<BacktestResponse>("/api/backtest", { params, timeoutMs: 90_000 }),
+    enabled,
+    retry: false,
+    staleTime: 30 * MINUTE,
+  });
+}
+
+export function useStrategies(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.strategies,
+    queryFn: () => request<StrategiesResponse>("/api/strategies", { timeoutMs: 60_000 }),
+    enabled,
+    retry: false,
+    staleTime: 30 * MINUTE,
+  });
+}
+
+export type QueryOpts<T> = Omit<UseQueryOptions<T>, "queryKey" | "queryFn">;
