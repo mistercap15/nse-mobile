@@ -116,13 +116,22 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: "center", padding: Spacing.xl },
+  // Top-aligned: the keyboard is up almost immediately here, and centred
+  // content jumps as it appears. Anchored to the top it stays put.
+  content: {
+    flexGrow: 1,
+    justifyContent: "flex-start",
+    padding: Spacing.xl,
+    paddingTop: Spacing.xxl,
+  },
   brand: { fontSize: 34, fontWeight: "800", textAlign: "center", letterSpacing: -0.5 },
   byline: { fontSize: 14, fontWeight: "700", textAlign: "center", marginTop: 4 },
   tagline: { fontSize: 12, textAlign: "center", marginTop: 8, letterSpacing: 0.6 },
-  pinArea: { marginTop: Spacing.xxl },
+  pinArea: { marginTop: Spacing.xl },
   prompt: { fontSize: 13, textAlign: "center", marginBottom: Spacing.lg, fontWeight: "600" },
   messageSlot: { minHeight: 34, justifyContent: "center", marginTop: Spacing.md },
-  footer: { marginTop: Spacing.xxl },
+  // Pushed to the bottom of whatever space is left, so it doesn't crowd the
+  // PIN boxes now that the block above no longer fills the screen.
+  footer: { marginTop: "auto", paddingTop: Spacing.xxl },
   footnote: { fontSize: 11, textAlign: "center", lineHeight: 16 },
 });
