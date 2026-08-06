@@ -6,6 +6,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { Badge, Button, Card, Label, SectionHeader } from "@/components/ui";
 import { signOut } from "@/lib/client";
 import { API_BASE, IS_LOCAL_API } from "@/lib/config";
+import { DEVELOPER } from "@/lib/developer";
 import { useSession, useUpstoxStatus } from "@/lib/queries";
 import { useUpstoxConnect } from "@/lib/useUpstoxConnect";
 import { useAppStore } from "@/lib/store";
@@ -19,16 +20,6 @@ import { Radius, Spacing, TAB_BAR_CLEARANCE, useColors } from "@/lib/theme";
 // how long the session has left, and whether Upstox is live — the three things
 // worth checking when a screen shows "—" and you want to know why.
 // ─────────────────────────────────────────────────────────────────────────────
-
-// ⚠️ EDIT ME — sourced from this machine's git config, shell environment and the
-// backend's git remote. Correct anything that's wrong, or add links.
-const DEVELOPER = {
-  name: "Khilan Patel",
-  email: "khilanpatel15@gmail.com",
-  github: "https://github.com/mistercap15",
-  repo: "https://github.com/mistercap15/NSE-Dashboard",
-  tagline: "Builds and trades this thing.",
-};
 
 const openURL = (url: string) => {
   Linking.openURL(url).catch(() =>
@@ -169,7 +160,7 @@ export default function AboutScreen() {
             <Row
               icon="logo-github"
               label="GitHub"
-              value="@mistercap15"
+              value={`@${DEVELOPER.github.split("/").pop()}`}
               onPress={() => openURL(DEVELOPER.github)}
             />
             <Row
