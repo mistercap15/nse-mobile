@@ -9,9 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.khilanpatel.nseranking"
     },
     "android": {
+      "package": "com.khilanpatel.nseranking",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -39,14 +41,27 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/93f24c0e-3146-408b-b8dc-f0eeb90b0a10"
+    },
     "extra": {
-      "apiBase": "https://nse-dashboard-gamma.vercel.app"
-    }
+      "apiBase": "https://nse-dashboard-gamma.vercel.app",
+      "router": {},
+      "eas": {
+        "projectId": "93f24c0e-3146-408b-b8dc-f0eeb90b0a10"
+      }
+    },
+    "owner": "khilanpatel15"
   }
 }
