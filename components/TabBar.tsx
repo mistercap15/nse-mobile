@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Radius, useColors } from "@/lib/theme";
+import { useColors } from "@/lib/theme";
 import { useAppStore } from "@/lib/store";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ export function TabBar({
               <View
                 style={[
                   styles.pill,
-                  focused && { backgroundColor: c.accentBg },
+                  focused && { backgroundColor: c.accentBgStrong, borderColor: c.accentEdge },
                 ]}
               >
                 <Ionicons
@@ -132,16 +132,22 @@ const styles = StyleSheet.create({
     shadowRadius: 22,
     elevation: 12,
   },
-  row: { flex: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: 5 },
-  item: { flex: 1, alignItems: "center", justifyContent: "center", height: "100%" },
+  row: { flex: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: 6 },
+  // Horizontal padding here (not on the pill) is what keeps adjacent
+  // highlights from meeting in the middle.
+  item: { flex: 1, alignItems: "center", justifyContent: "center", height: "100%", paddingHorizontal: 3 },
   pill: {
+    alignSelf: "stretch",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 6,
-    paddingHorizontal: 4,
-    borderRadius: Radius.md,
-    width: "100%",
-    gap: 2,
+    // Echoes the bar's own 26 rather than fighting it with a squarer corner.
+    borderRadius: 18,
+    // Always present, transparent when unselected — otherwise the border
+    // appearing on focus would nudge every icon by a pixel.
+    borderWidth: 1,
+    borderColor: "transparent",
+    gap: 3,
   },
   label: { fontSize: 9.5, letterSpacing: 0.2 },
 });
