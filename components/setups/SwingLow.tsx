@@ -172,7 +172,12 @@ export function SwingLowPanel() {
     return ["ALL", ...Array.from(new Set(all.map((s) => s.sector))).sort()];
   }, [data]);
 
-  const primeCount = (data?.atSwingLow ?? []).filter((s) => s.tier === "Prime").length;
+  // The engine emits tiers uppercase ("PRIME"/"STRONG"/"WATCH"). Normalise
+  // rather than compare literals — the badge and tierColor already uppercase,
+  // which is why a mismatch here showed 9 Prime badges above a count of 0.
+  const primeCount = (data?.atSwingLow ?? []).filter(
+    (s) => (s.tier ?? "").toUpperCase() === "PRIME",
+  ).length;
 
   return (
     <View>

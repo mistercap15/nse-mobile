@@ -46,6 +46,15 @@ async function handleExpiry() {
   expiryListeners.forEach((fn) => fn());
 }
 
+/**
+ * Explicit sign-out. Drops the stored session and notifies the root gate, which
+ * swaps back to the PIN screen. Same path an expiry takes — the difference is
+ * only that the user asked for it.
+ */
+export async function signOut(): Promise<void> {
+  await handleExpiry();
+}
+
 function url(path: string, params?: Record<string, unknown>): string {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params ?? {})) {

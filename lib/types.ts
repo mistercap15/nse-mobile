@@ -129,7 +129,8 @@ export interface SwingLowStock {
   inSeason: boolean;
   score: number;
   grade?: string;
-  tier: "Prime" | "Strong" | "Watch" | string;
+  /** Uppercase from the engine — compare case-insensitively, never as a literal. */
+  tier: "PRIME" | "STRONG" | "WATCH" | string;
   components?: Record<string, number>;
   reasons?: string[];
 }
@@ -375,7 +376,7 @@ export interface MonthStrategy {
   monthName: string;
   totalScanned: number;
   lastUpdated: string;
-  action: "LONG" | "SHORT" | "AVOID" | "MIXED" | string;
+  action: "LONG" | "SHORT" | "PAIRED" | "FLAT" | string;
   dominantSector: string;
   reason: string;
   macroCheck?: string;

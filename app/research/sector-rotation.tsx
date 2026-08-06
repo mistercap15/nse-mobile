@@ -20,12 +20,14 @@ import type { MonthStrategy, RankedStock } from "@/lib/types";
 // 10+ years of data quality. The current month is pinned at the top.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// The strategy engine emits exactly LONG / SHORT / PAIRED / FLAT.
 function actionColor(c: AppColors, action: string): string {
-  switch (action) {
-    case "LONG":  return c.green;
-    case "SHORT": return c.red;
-    case "MIXED": return c.amber;
-    default:      return c.dim;
+  switch ((action ?? "").toUpperCase()) {
+    case "LONG":   return c.green;
+    case "SHORT":  return c.red;
+    case "PAIRED": return c.purple; // both sides on — a real setup, not a no-op
+    case "FLAT":   return c.dim;    // genuinely nothing to do
+    default:       return c.dim;
   }
 }
 
