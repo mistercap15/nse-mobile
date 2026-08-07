@@ -5,7 +5,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { TabBar, type TabMeta } from "@/components/TabBar";
 import { HomeHeaderTitle } from "@/components/HeaderTitle";
 import { APP_TITLE } from "@/lib/developer";
-import { useColors } from "@/lib/theme";
+import { useColors, useIsDark } from "@/lib/theme";
 import { useAppStore } from "@/lib/store";
 import { useUpstoxForegroundRefresh } from "@/components/ConnectionBanner";
 
@@ -23,7 +23,8 @@ const ORDER = ["index", "rankings", "setups", "research", "about"] as const;
 
 export default function TabLayout() {
   const c = useColors();
-  const { isDark, toggleTheme } = useAppStore();
+  const isDark = useIsDark();
+  const setExplicitTheme = useAppStore((s) => s.setExplicitTheme);
 
   useUpstoxForegroundRefresh();
 
@@ -38,7 +39,7 @@ export default function TabLayout() {
         sceneStyle: { backgroundColor: c.bg },
         headerRight: () => (
           <Pressable
-            onPress={toggleTheme}
+            onPress={() => setExplicitTheme(!isDark)}
             hitSlop={12}
             style={{ marginRight: 16, padding: 6 }}
             accessibilityLabel="Toggle light and dark theme"

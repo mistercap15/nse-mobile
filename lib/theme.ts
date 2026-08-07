@@ -1,3 +1,4 @@
+import { useColorScheme } from "react-native";
 import { useAppStore } from "./store";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -56,12 +57,22 @@ export const LightColors: typeof DarkColors = {
 
 export type AppColors = typeof DarkColors;
 
-export function useColors(): AppColors {
-  return useAppStore((s) => s.isDark) ? DarkColors : LightColors;
+/**
+ * Resolves the stored preference against the device appearance. "system" is the
+ * default, so a fresh install matches whatever the phone is set to.
+ *
+ * useColorScheme returns null before the OS reports one; dark is the fallback
+ * since that's the app's designed-for default.
+ */
+export function useIsDark(): boolean {
+  const mode = useAppStore((s) => s.themeMode);
+  const system = useColorScheme();
+  if (mode === "system") return system !== "light";
+  return mode === "dark";
 }
 
-export function useIsDark(): boolean {
-  return useAppStore((s) => s.isDark);
+export function useColors(): AppColors {
+  return useIsDark() ? DarkColors : LightColors;
 }
 
 export const Spacing = { xs: 4, sm: 8, md: 14, lg: 20, xl: 28, xxl: 40 };

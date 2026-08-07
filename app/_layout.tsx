@@ -8,8 +8,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { onSessionExpired } from "@/lib/client";
 import { loadSession, peekSession } from "@/lib/session";
-import { useColors } from "@/lib/theme";
-import { useAppStore } from "@/lib/store";
+import { useColors, useIsDark } from "@/lib/theme";
 import { LoginScreen } from "@/components/LoginScreen";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -36,7 +35,7 @@ const queryClient = new QueryClient({
 // ─────────────────────────────────────────────────────────────────────────────
 function Gate() {
   const colors = useColors();
-  const isDark = useAppStore((s) => s.isDark);
+  const isDark = useIsDark();
   const [ready, setReady] = useState(false);
   const [authed, setAuthed] = useState(false);
 

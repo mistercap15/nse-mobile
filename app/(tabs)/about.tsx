@@ -1,18 +1,18 @@
 import React from "react";
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Constants from "expo-constants";
 import * as Updates from "expo-updates";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Badge, Button, Card, Label, SectionHeader } from "@/components/ui";
+import { Badge, Button, Card, Label, SectionHeader, Segmented } from "@/components/ui";
 import { signOut } from "@/lib/client";
 import { API_BASE, IS_LOCAL_API } from "@/lib/config";
 import { APP_TITLE, DEVELOPER } from "@/lib/developer";
 import { useSession, useUpstoxStatus } from "@/lib/queries";
 import { useUpstoxConnect } from "@/lib/useUpstoxConnect";
-import { useAppStore } from "@/lib/store";
+import { useAppStore, type ThemeMode } from "@/lib/store";
 import { untilExpiry } from "@/lib/format";
-import { Radius, Spacing, TAB_BAR_CLEARANCE, useColors } from "@/lib/theme";
+import { Radius, Spacing, TAB_BAR_CLEARANCE, useColors, useIsDark } from "@/lib/theme";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // About + settings.
@@ -67,7 +67,9 @@ function Row({
 
 export default function AboutScreen() {
   const c = useColors();
-  const { isDark, toggleTheme } = useAppStore();
+  const isDark = useIsDark();
+  const themeMode = useAppStore((s) => s.themeMode);
+  const setThemeMode = useAppStore((s) => s.setThemeMode);
   const session = useSession();
   const upstox = useUpstoxStatus();
   const { connect, connecting } = useUpstoxConnect();
@@ -245,11 +247,31 @@ export default function AboutScreen() {
         {/* Settings */}
         <SectionHeader title="Settings" />
         <Card style={{ padding: Spacing.md }}>
-          <View style={styles.row}>
-            <Ionicons name={isDark ? "moon-outline" : "sunny-outline"} size={16} color={c.dim} style={{ width: 22 }} />
-            <Text style={{ color: c.soft, fontSize: 12, flex: 1 }}>Dark theme</Text>
-            <Switch value={isDark} onValueChange={toggleTheme} trackColor={{ true: c.accent, false: c.muted }} />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Ionicons
+              name={isDark ? "moon-outline" : "sunny-outline"}
+              size={16}
+              color={c.dim}
+              style={{ width: 22 }}
+            />
+            <Text style={{ color: c.soft, fontSize: 12, flex: 1 }}>Appearance</Text>
           </View>
+          <View style={{ marginTop: Spacing.sm }}>
+            <Segmented<ThemeMode>
+              value={themeMode}
+              onChange={setThemeMode}
+              options={[
+                { value: "system", label: "System" },
+                { value: "light", label: "Light" },
+                { value: "dark", label: "Dark" },
+              ]}
+            />
+          </View>
+          <Text style={{ color: c.dim, fontSize: 10, marginTop: Spacing.sm, lineHeight: 15 }}>
+            {themeMode === "system"
+              ? `Following your device, currently ${isDark ? "dark" : "light"}.`
+              : "Fixed regardless of your device setting."}
+          </Text>
         </Card>
 
         <View style={{ marginTop: Spacing.md }}>

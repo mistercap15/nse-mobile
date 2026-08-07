@@ -16,9 +16,8 @@ import {
 } from "@/components/ui";
 import { ConnectionBanner } from "@/components/ConnectionBanner";
 import { useAnalysis, useCandles, useQuotes } from "@/lib/queries";
-import { useAppStore } from "@/lib/store";
 import { DASH, MONTHS, currentMonthIST, num, pct, rupees } from "@/lib/format";
-import { Spacing, deltaColor, signalColor, useColors } from "@/lib/theme";
+import { Spacing, deltaColor, signalColor, useColors, useIsDark } from "@/lib/theme";
 import type { MonthSeasonality } from "@/lib/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -34,7 +33,7 @@ const RANGE_DAYS: Record<Range, number> = { "6M": 190, "1Y": 380, "3Y": 1100 };
 
 export function StockAnalysis({ symbol }: { symbol: string }) {
   const c = useColors();
-  const isDark = useAppStore((s) => s.isDark);
+  const isDark = useIsDark();
   const { width } = useWindowDimensions();
   const [range, setRange] = useState<Range>("1Y");
 

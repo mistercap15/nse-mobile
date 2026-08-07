@@ -5,8 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useColors } from "@/lib/theme";
-import { useAppStore } from "@/lib/store";
+import { useColors, useIsDark } from "@/lib/theme";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Floating glass tab bar.
@@ -31,7 +30,7 @@ export function TabBar({
   tabs,
 }: BottomTabBarProps & { tabs: Record<string, TabMeta> }) {
   const c = useColors();
-  const isDark = useAppStore((s) => s.isDark);
+  const isDark = useIsDark();
   const insets = useSafeAreaInsets();
 
   return (
