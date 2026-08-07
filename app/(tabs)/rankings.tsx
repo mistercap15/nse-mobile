@@ -15,7 +15,7 @@ import {
   StatCard,
   StatRow,
 } from "@/components/ui";
-import { useRankings } from "@/lib/queries";
+import { useEarlyEntry, useRankings } from "@/lib/queries";
 import { useAppStore } from "@/lib/store";
 import { MONTH_FULL, num, pct } from "@/lib/format";
 import { Spacing, TAB_BAR_CLEARANCE, deltaColor, useColors } from "@/lib/theme";
@@ -38,6 +38,14 @@ export default function RankingsScreen() {
   const [side, setSide] = useState<Side>("long");
 
   const { data, isLoading, isRefetching, error, refetch } = useRankings(month, "ALL", 50);
+
+  // /api/rankings derives sentiment by calling /api/early-entry internally, and
+  // on production that inner call doesn't complete — so the key is simply
+  // absent and the panel would never appear. Fall back to the Early Entry
+  // query's cache: enabled:false means we read what's already there and never
+  // trigger that expensive scan ourselves.
+  const cachedEarly = useEarlyEntry(false);
+  const sentiment = data?.sentiment ?? cachedEarly.data?.sentiment;
 
   const list: RankedStock[] = useMemo(() => {
     if (!data) return [];
@@ -121,7 +129,7 @@ export default function RankingsScreen() {
 
             <View style={{ marginTop: Spacing.md }}>
               <RegimeBanner regime={data?.regime} />
-              <SentimentPanel sentiment={data?.sentiment} />
+              <SentimentPanel sentiment={sentiment} />
             </View>
 
             <SectionHeader

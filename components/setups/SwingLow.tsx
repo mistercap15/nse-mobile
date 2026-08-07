@@ -38,6 +38,9 @@ function SwingRow({ s }: { s: SwingLowStock }) {
   const c = useColors();
   const [open, setOpen] = useState(false);
   const tint = tierColor(c, s.tier);
+  // The engine reports bounceRate as a 0–1 ratio (good / entries), not a
+  // percentage — rendering it raw showed every stock as 0% or 1%.
+  const bouncePct = s.bounceRate != null ? s.bounceRate * 100 : null;
 
   return (
     <Card style={{ padding: Spacing.md }}>
@@ -76,9 +79,9 @@ function SwingRow({ s }: { s: SwingLowStock }) {
           />
           <Metric
             label="Bounce"
-            value={s.bounceRate != null ? `${s.bounceRate.toFixed(0)}%` : DASH}
+            value={bouncePct != null ? `${bouncePct.toFixed(0)}%` : DASH}
             sub={sampleNote(s.bounceSamples)}
-            color={deltaColor(c, s.bounceRate != null ? s.bounceRate - 50 : null)}
+            color={deltaColor(c, bouncePct != null ? bouncePct - 50 : null)}
           />
         </View>
       </Pressable>

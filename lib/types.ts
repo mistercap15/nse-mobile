@@ -120,7 +120,9 @@ export interface SwingLowStock {
   rsi: number;
   drawdownFromHighPct: number;
   ma200: number | null;
+  /** 0–1 ratio (good / entries), NOT a percentage — multiply by 100 to display. */
   bounceRate: number | null;
+  /** Already a percentage. */
   bounceAvgPct: number | null;
   bounceSamples: number;
   rr: RewardRisk | null;

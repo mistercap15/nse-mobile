@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -7,12 +8,13 @@ import {
   Text,
   View,
 } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiError } from "@/lib/client";
 import { IS_LOCAL_API, API_BASE } from "@/lib/config";
 import { APP_TITLE, DEVELOPER } from "@/lib/developer";
 import { useLogin } from "@/lib/queries";
-import { Spacing, useColors } from "@/lib/theme";
+import { Radius, Spacing, useColors } from "@/lib/theme";
 import { PinInput } from "./PinInput";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -79,7 +81,23 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }
           </Text>
 
           <View style={styles.pinArea}>
-            <Text style={[styles.prompt, { color: c.soft }]}>
+            <View
+              style={[
+                styles.lockBadge,
+                {
+                  backgroundColor: locked ? c.redBg : c.accentBg,
+                  borderColor: locked ? c.red : c.accent,
+                },
+              ]}
+            >
+              <Ionicons
+                name={locked ? "lock-closed" : "keypad-outline"}
+                size={20}
+                color={locked ? c.red : c.accent}
+              />
+            </View>
+
+            <Text style={[styles.prompt, { color: locked ? c.red : c.soft }]}>
               {locked ? `Locked — try again in ${lockedFor}s` : "Enter your 6-digit PIN"}
             </Text>
 
@@ -89,9 +107,13 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }
               error={failed}
             />
 
+            {/* Fixed height so the boxes don't jump when a message appears. */}
             <View style={styles.messageSlot}>
               {login.isPending ? (
-                <Text style={{ color: c.dim, fontSize: 12 }}>Checking…</Text>
+                <View style={styles.checkingRow}>
+                  <ActivityIndicator size="small" color={c.accent} />
+                  <Text style={{ color: c.dim, fontSize: 12 }}>Checking…</Text>
+                </View>
               ) : message ? (
                 <Text style={{ color: c.red, fontSize: 12, textAlign: "center" }}>{message}</Text>
               ) : null}
@@ -127,9 +149,19 @@ const styles = StyleSheet.create({
   brand: { fontSize: 34, fontWeight: "800", textAlign: "center", letterSpacing: -0.5 },
   byline: { fontSize: 14, fontWeight: "700", textAlign: "center", marginTop: 4 },
   tagline: { fontSize: 12, textAlign: "center", marginTop: 8, letterSpacing: 0.6 },
-  pinArea: { marginTop: Spacing.xl },
+  pinArea: { marginTop: Spacing.xl, alignItems: "center" },
+  lockBadge: {
+    width: 46,
+    height: 46,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.md,
+  },
   prompt: { fontSize: 13, textAlign: "center", marginBottom: Spacing.lg, fontWeight: "600" },
   messageSlot: { minHeight: 34, justifyContent: "center", marginTop: Spacing.md },
+  checkingRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   // Pushed to the bottom of whatever space is left, so it doesn't crowd the
   // PIN boxes now that the block above no longer fills the screen.
   footer: { marginTop: "auto", paddingTop: Spacing.xxl },

@@ -18,8 +18,8 @@ import { Radius, Spacing, useColors } from "@/lib/theme";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const LENGTH = 6;
-const BOX_W = 44;
-const BOX_H = 54;
+const BOX_W = 46;
+const BOX_H = 58;
 
 export function PinInput({
   onComplete,
@@ -69,26 +69,41 @@ export function PinInput({
         {Array.from({ length: LENGTH }, (_, i) => {
           const filled = i < value.length;
           const isNext = focused && i === value.length;
+
+          // Three visual states, in priority order: error, filled, awaiting
+          // input. A plain empty box is the quiet default.
+          const border = error ? c.red : isNext ? c.accent : filled ? c.soft : c.border;
+          const fill = error ? c.redBg : isNext ? c.accentBg : c.card;
+
           return (
             <View
               key={i}
               style={[
                 styles.box,
                 {
-                  backgroundColor: c.card,
-                  borderColor: error ? c.red : isNext ? c.accent : c.border,
-                  opacity: disabled ? 0.5 : 1,
+                  backgroundColor: fill,
+                  borderColor: border,
+                  opacity: disabled ? 0.45 : 1,
+                  // Lift the active box so the eye tracks where input lands.
+                  shadowColor: c.accent,
+                  shadowOpacity: isNext ? 0.35 : 0,
+                  shadowRadius: 8,
+                  shadowOffset: { width: 0, height: 2 },
+                  elevation: isNext ? 3 : 0,
                 },
               ]}
             >
-              <View
-                style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: 5,
-                  backgroundColor: filled ? (error ? c.red : c.text) : "transparent",
-                }}
-              />
+              {filled ? (
+                <View
+                  style={[styles.dot, { backgroundColor: error ? c.red : c.text }]}
+                />
+              ) : isNext ? (
+                // Caret bar rather than a dot, so "waiting here" reads
+                // differently from "a digit is entered".
+                <View style={[styles.caret, { backgroundColor: c.accent }]} />
+              ) : (
+                <View style={[styles.placeholder, { backgroundColor: c.border }]} />
+              )}
             </View>
           );
         })}
@@ -117,15 +132,18 @@ export function PinInput({
 
 const styles = StyleSheet.create({
   wrap: { alignSelf: "center", paddingVertical: Spacing.sm },
-  boxes: { flexDirection: "row", gap: Spacing.sm, justifyContent: "center" },
+  boxes: { flexDirection: "row", gap: 10, justifyContent: "center" },
   box: {
     width: BOX_W,
     height: BOX_H,
-    borderRadius: Radius.md,
+    borderRadius: Radius.md + 2,
     borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
+  dot: { width: 11, height: 11, borderRadius: 6 },
+  caret: { width: 2, height: 22, borderRadius: 1 },
+  placeholder: { width: 8, height: 2, borderRadius: 1, opacity: 0.7 },
   // Transparent rather than opacity:0 — some Android builds skip touch
   // dispatch to fully transparent views, and the text must stay invisible
   // regardless since the boxes below are the real display.

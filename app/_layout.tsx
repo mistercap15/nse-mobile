@@ -73,6 +73,8 @@ function Gate() {
           }}
         >
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          {/* OAuth hand-back; renders headerless and replaces itself with Home. */}
+          <Stack.Screen name="upstox/connected" options={{ headerShown: false }} />
           <Stack.Screen name="stock/[symbol]" options={{ title: "Stock" }} />
           <Stack.Screen name="research/screener" options={{ title: "Screener" }} />
           <Stack.Screen name="research/sector-rotation" options={{ title: "Sector Rotation" }} />
