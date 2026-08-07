@@ -9,7 +9,8 @@ import {
   Label,
   SectionHeader,
   Segmented,
-  SkeletonList,
+  Skeleton,
+  SkeletonScreen,
   StatCard,
   StatRow,
 } from "@/components/ui";
@@ -64,7 +65,7 @@ export function StockAnalysis({ symbol }: { symbol: string }) {
   const current = seasonality.find((s) => s.month_num === thisMonth) ?? null;
   const chartWidth = width - Spacing.md * 2 - 2 /* card border */ - Spacing.md * 2;
 
-  if (analysis.isLoading) return <SkeletonList rows={6} />;
+  if (analysis.isLoading) return <SkeletonScreen rows={4} stats={3} />;
   if (analysis.error) {
     return <ErrorState message={(analysis.error as Error).message} onRetry={analysis.refetch} />;
   }
@@ -166,9 +167,7 @@ export function StockAnalysis({ symbol }: { symbol: string }) {
       />
       <Card style={{ padding: Spacing.md }}>
         {candles.isLoading ? (
-          <Text style={{ color: c.dim, fontSize: 11, paddingVertical: 24, textAlign: "center" }}>
-            Loading candles…
-          </Text>
+          <Skeleton height={160} />
         ) : candles.data?.candles?.length ? (
           <>
             <LineChart

@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useQueries } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { Card, EmptyState, Label, SectionHeader, SkeletonList } from "@/components/ui";
+import { Card, EmptyState, Label, SectionHeader, SkeletonCard } from "@/components/ui";
 import { request } from "@/lib/client";
 import { queryKeys } from "@/lib/queries";
 import { MONTH_FULL, currentMonthIST, pct } from "@/lib/format";
@@ -49,7 +49,11 @@ export default function CalendarScreen() {
 
       {loading && !anyData ? (
         <View style={{ marginTop: Spacing.lg }}>
-          <SkeletonList rows={6} />
+          <View style={{ gap: Spacing.sm }}>
+            {Array.from({ length: 5 }, (_, i) => (
+              <SkeletonCard key={i} height={54} />
+            ))}
+          </View>
         </View>
       ) : !anyData ? (
         <EmptyState title="No calendar data" hint="The rankings service returned nothing." />

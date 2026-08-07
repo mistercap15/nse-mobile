@@ -11,7 +11,7 @@ import {
   ErrorState,
   Label,
   SectionHeader,
-  SkeletonList,
+  SkeletonScreen,
   StatCard,
   StatRow,
 } from "@/components/ui";
@@ -74,7 +74,7 @@ export default function HomeScreen() {
 
         {isLoading ? (
           <View style={{ marginTop: Spacing.lg }}>
-            <SkeletonList rows={5} />
+            <SkeletonScreen rows={5} stats={3} />
           </View>
         ) : error ? (
           <ErrorState message={(error as Error).message} onRetry={refetch} />

@@ -8,7 +8,7 @@ import {
   ErrorState,
   Label,
   SectionHeader,
-  SkeletonList,
+  SkeletonCard,
 } from "@/components/ui";
 import { useStrategies } from "@/lib/queries";
 import { currentMonthIST, num } from "@/lib/format";
@@ -143,7 +143,11 @@ export default function SectorRotationScreen() {
 
       {isLoading ? (
         <View style={{ marginTop: Spacing.lg }}>
-          <SkeletonList rows={4} />
+          <View style={{ gap: Spacing.sm }}>
+            {Array.from({ length: 4 }, (_, i) => (
+              <SkeletonCard key={i} height={70} />
+            ))}
+          </View>
         </View>
       ) : error ? (
         <ErrorState message={(error as Error).message} onRetry={refetch} />

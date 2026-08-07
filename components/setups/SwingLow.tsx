@@ -11,7 +11,7 @@ import {
   Label,
   SectionHeader,
   Segmented,
-  SkeletonList,
+  SkeletonScreen,
   StatCard,
   StatRow,
 } from "@/components/ui";
@@ -213,7 +213,7 @@ export function SwingLowPanel() {
           <Text style={{ color: c.dim, fontSize: 11, marginBottom: Spacing.sm }}>
             Reading ~3 years of candles across the universe — this can take a minute.
           </Text>
-          <SkeletonList rows={5} />
+          <SkeletonScreen rows={5} stats={3} />
         </View>
       ) : error ? (
         <ErrorState message={(error as Error).message} onRetry={refetch} />

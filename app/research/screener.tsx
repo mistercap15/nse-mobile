@@ -7,7 +7,7 @@ import {
   ErrorState,
   Label,
   SectionHeader,
-  SkeletonList,
+  SkeletonScreen,
   StatCard,
   StatRow,
 } from "@/components/ui";
@@ -107,7 +107,7 @@ export default function ScreenerScreen() {
 
       {isLoading ? (
         <View style={{ marginTop: Spacing.lg }}>
-          <SkeletonList rows={6} />
+          <SkeletonScreen rows={6} stats={2} />
         </View>
       ) : error ? (
         <ErrorState message={(error as Error).message} onRetry={refetch} />

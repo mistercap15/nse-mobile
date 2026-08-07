@@ -9,7 +9,7 @@ import {
   Label,
   SectionHeader,
   Segmented,
-  SkeletonList,
+  SkeletonScreen,
   StatCard,
   StatRow,
 } from "@/components/ui";
@@ -91,7 +91,7 @@ export default function BacktestScreen() {
 
       {isLoading ? (
         <View style={{ marginTop: Spacing.lg }}>
-          <SkeletonList rows={5} />
+          <SkeletonScreen rows={4} stats={3} />
         </View>
       ) : error ? (
         <ErrorState message={(error as Error).message} onRetry={refetch} />

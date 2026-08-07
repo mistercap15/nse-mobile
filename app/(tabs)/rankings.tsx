@@ -11,7 +11,7 @@ import {
   Label,
   Segmented,
   SectionHeader,
-  SkeletonList,
+  SkeletonScreen,
   StatCard,
   StatRow,
 } from "@/components/ui";
@@ -87,7 +87,7 @@ export default function RankingsScreen() {
 
         {isLoading ? (
           <View style={{ marginTop: Spacing.lg }}>
-            <SkeletonList rows={7} />
+            <SkeletonScreen rows={6} stats={3} />
           </View>
         ) : error ? (
           <ErrorState message={(error as Error).message} onRetry={refetch} />

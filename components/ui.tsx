@@ -265,12 +265,28 @@ export function Segmented<T extends string>({
 
 // ── States ──────────────────────────────────────────────────────────────────
 
-export function Loading({ text = "Loading…" }: { text?: string }) {
+export function Loading({ text = "Loading…", sub }: { text?: string; sub?: string }) {
   const c = useColors();
   return (
     <View style={styles.centered}>
-      <ActivityIndicator color={c.accent} />
-      <Text style={{ color: c.dim, fontSize: 12, marginTop: 10 }}>{text}</Text>
+      <View
+        style={{
+          width: 46,
+          height: 46,
+          borderRadius: Radius.full,
+          backgroundColor: c.accentBg,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <ActivityIndicator color={c.accent} />
+      </View>
+      <Text style={{ color: c.soft, fontSize: 13, marginTop: 12, fontWeight: "600" }}>{text}</Text>
+      {sub ? (
+        <Text style={{ color: c.dim, fontSize: 11, marginTop: 5, textAlign: "center", lineHeight: 16 }}>
+          {sub}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -304,28 +320,16 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
   );
 }
 
-/** Shimmer-free skeleton block — cheap, and honest about being a placeholder. */
-export function Skeleton({ height = 60, style }: { height?: number; style?: ViewStyle }) {
-  const c = useColors();
-  return (
-    <View
-      style={[
-        { height, borderRadius: Radius.md, backgroundColor: c.surface, opacity: 0.7 },
-        style,
-      ]}
-    />
-  );
-}
-
-export function SkeletonList({ rows = 6 }: { rows?: number }) {
-  return (
-    <View style={{ gap: Spacing.sm }}>
-      {Array.from({ length: rows }, (_, i) => (
-        <Skeleton key={i} height={66} />
-      ))}
-    </View>
-  );
-}
+// Loading placeholders live in ./Skeleton; re-exported so screens keep a single
+// import from "@/components/ui".
+export {
+  Skeleton,
+  SkeletonRow,
+  SkeletonList,
+  SkeletonStatRow,
+  SkeletonCard,
+  SkeletonScreen,
+} from "./Skeleton";
 
 // ── Key/value line, used inside expanded rows ───────────────────────────────
 

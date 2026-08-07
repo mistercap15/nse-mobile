@@ -10,7 +10,7 @@ import {
   KV,
   Label,
   SectionHeader,
-  SkeletonList,
+  SkeletonScreen,
   StatCard,
   StatRow,
 } from "@/components/ui";
@@ -262,7 +262,7 @@ export function SizingPanel() {
 
       {rankings.isLoading ? (
         <View style={{ marginTop: Spacing.lg }}>
-          <SkeletonList rows={5} />
+          <SkeletonScreen rows={5} stats={3} />
         </View>
       ) : rankings.error ? (
         <ErrorState message={(rankings.error as Error).message} onRetry={rankings.refetch} />
