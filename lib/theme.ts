@@ -30,11 +30,6 @@ export const DarkColors = {
   amberBg:  "rgba(252,211,77,0.12)",
   accentBg: "rgba(77,159,255,0.12)",
   purpleBg: "rgba(139,92,246,0.12)",
-
-  // Selected-state fill + edge. Stronger than `accentBg`, which is tuned for
-  // flat cards and disappears when laid over the tab bar's blur.
-  accentBgStrong: "rgba(77,159,255,0.22)",
-  accentEdge:     "rgba(77,159,255,0.40)",
 };
 
 export const LightColors: typeof DarkColors = {
@@ -57,9 +52,6 @@ export const LightColors: typeof DarkColors = {
   amberBg:  "rgba(180,83,9,0.10)",
   accentBg: "rgba(29,111,232,0.10)",
   purpleBg: "rgba(109,40,217,0.10)",
-
-  accentBgStrong: "rgba(29,111,232,0.15)",
-  accentEdge:     "rgba(29,111,232,0.32)",
 };
 
 export type AppColors = typeof DarkColors;

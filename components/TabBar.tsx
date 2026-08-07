@@ -89,16 +89,19 @@ export function TabBar({
               accessibilityLabel={meta.label}
               style={styles.item}
             >
-              <View
-                style={[
-                  styles.pill,
-                  focused && { backgroundColor: c.accentBgStrong, borderColor: c.accentEdge },
-                ]}
-              >
+              <View style={styles.pill}>
                 <Ionicons
                   name={focused ? meta.active : meta.inactive}
                   size={19}
                   color={focused ? c.accent : c.dim}
+                />
+                {/* Always rendered, transparent when inactive — reserving the
+                    space stops the icons shifting as you change tabs. */}
+                <View
+                  style={[
+                    styles.dot,
+                    { backgroundColor: focused ? c.accent : "transparent" },
+                  ]}
                 />
                 <Text
                   numberOfLines={1}
@@ -140,14 +143,9 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 6,
-    // Echoes the bar's own 26 rather than fighting it with a squarer corner.
-    borderRadius: 18,
-    // Always present, transparent when unselected — otherwise the border
-    // appearing on focus would nudge every icon by a pixel.
-    borderWidth: 1,
-    borderColor: "transparent",
-    gap: 3,
+    paddingVertical: 4,
+    gap: 2,
   },
+  dot: { width: 4, height: 4, borderRadius: 2 },
   label: { fontSize: 9.5, letterSpacing: 0.2 },
 });
