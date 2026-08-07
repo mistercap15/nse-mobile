@@ -8,15 +8,19 @@ from PIL import Image, ImageDraw
 
 S = 4  # supersample factor
 
-# Design tokens, matching lib/theme.ts
-BG_TOP = (19, 29, 48)      # card  #131D30
-BG_BOT = (9, 14, 26)       # bg    #090E1A
-ACCENT = (77, 159, 255)    # accent #4D9FFF
-GREEN = (34, 197, 94)      # green  #22C55E
+# Pale ice-blue background, matching the Expo template icon this replaces —
+# sampled from it: ~#E6F4FE at the top deepening toward ~#BFDFFA at the bottom.
+#
+# The motif uses the LIGHT theme's accent/green from lib/theme.ts: the dark-theme
+# variants are tuned for a near-black background and go washed-out on pale blue.
+BG_TOP = (230, 244, 254)   # #E6F4FE
+BG_BOT = (191, 223, 250)   # #BFDFFA
+ACCENT = (29, 111, 232)    # accent #1D6FE8
+GREEN = (21, 128, 61)      # green  #15803D
 # Opaque on purpose: a semi-transparent fill drawn onto the transparent motif
 # layer blends toward black, not toward the background, and the bars all but
 # disappeared. This is the intended blended value, stated directly.
-MUTED_BAR = (124, 138, 162)
+MUTED_BAR = (135, 150, 172)
 
 
 def rounded_rect(d, box, r, fill):
@@ -121,8 +125,8 @@ fg = centred_motif(big, 0.66)
 fg.resize((1024, 1024), Image.LANCZOS).save(f"{OUT}/android-icon-foreground.png")
 print(f"  wrote {OUT}/android-icon-foreground.png (1024x1024, safe-zone inset)")
 
-# Android adaptive background: flat brand colour.
-Image.new("RGBA", (1024, 1024), BG_BOT + (255,)).save(f"{OUT}/android-icon-background.png")
+# Android adaptive background: flat ice-blue, matching the icon background.
+Image.new("RGBA", (1024, 1024), (230, 244, 254, 255)).save(f"{OUT}/android-icon-background.png")
 print(f"  wrote {OUT}/android-icon-background.png")
 
 # Monochrome (Android 13 themed icons): silhouette on transparent.
@@ -141,10 +145,16 @@ for i, h in enumerate([0.16, 0.245, 0.33, 0.45]):
 mono.resize((1024, 1024), Image.LANCZOS).save(f"{OUT}/android-icon-monochrome.png")
 print(f"  wrote {OUT}/android-icon-monochrome.png")
 
-# Splash mark — motif, no background (app.json sets the splash colour).
+# Splash mark — motif, no background. The splash background is theme-aware
+# (cream or near-black), so this one render has to work on both. The icon's
+# light-theme blue/green are too dark to read on the dark splash, so the mark
+# uses the mid-tone dark-theme tokens, which hold up against either.
+ACCENT = (77, 159, 255)    # #4D9FFF
+GREEN = (34, 197, 94)      # #22C55E
+MUTED_BAR = (148, 163, 184)  # soft #94A3B8
 splash = centred_motif(big, 0.9)
 splash.resize((512, 512), Image.LANCZOS).save(f"{OUT}/splash-icon.png")
-print(f"  wrote {OUT}/splash-icon.png (512x512)")
+print(f"  wrote {OUT}/splash-icon.png (512x512, mid-tone for both splash themes)")
 
 # Favicon for the web build.
 make(64, f"{OUT}/favicon.png", with_bg=True, radius_frac=0.22)
