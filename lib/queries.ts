@@ -3,6 +3,8 @@ import { ApiError, request } from "./client";
 import { saveSession } from "./session";
 import type {
   AnalysisResponse,
+  LevelsResponse,
+  UniverseResponse,
   BacktestResponse,
   CandlesResponse,
   EarlyEntryResponse,
@@ -39,6 +41,9 @@ export const queryKeys = {
   candles: (symbol: string, days: number) => ["candles", symbol, days] as const,
   quotes: (symbols: string[]) => ["quotes", symbols.join(",")] as const,
   earlyEntry: ["early-entry"] as const,
+  universe: ["universe"] as const,
+  levels: (symbols: string[], month: number | undefined, strategy: string, lots: number) =>
+    ["levels", symbols.join(","), month ?? null, strategy, lots] as const,
   backtest: (params: Record<string, unknown>) => ["backtest", params] as const,
   strategies: ["strategies"] as const,
 };
@@ -190,6 +195,45 @@ export function useEarlyEntry(enabled = true) {
     enabled,
     retry: false,
     staleTime: 15 * MINUTE,
+  });
+}
+
+// ── Universe + trade levels ─────────────────────────────────────────────────
+
+/**
+ * The full F&O symbol list. Snapshot-derived and effectively static, so it is
+ * fetched once and kept for the session — search needs all 181 names, not just
+ * whichever ones happen to be in this month's rankings.
+ */
+export function useUniverse() {
+  return useQuery({
+    queryKey: queryKeys.universe,
+    queryFn: () => request<UniverseResponse>("/api/universe", { timeoutMs: 30_000 }),
+    staleTime: 24 * 60 * MINUTE,
+    gcTime: 24 * 60 * MINUTE,
+  });
+}
+
+/**
+ * Entry / stop / target from the backend's shared engine. One symbol or many;
+ * `strategy` picks which target basis applies (the stop rule is the same
+ * either way). Returns seasonality even when Upstox is down.
+ */
+export function useLevels(
+  symbols: string[],
+  opts: { month?: number; strategy?: "seasonal" | "reversion"; lots?: number; enabled?: boolean } = {},
+) {
+  const { month, strategy = "seasonal", lots = 0, enabled = true } = opts;
+  return useQuery({
+    queryKey: queryKeys.levels(symbols, month, strategy, lots),
+    queryFn: () =>
+      request<LevelsResponse>("/api/levels", {
+        params: { symbols: symbols.join(","), month, strategy, lots: lots || undefined },
+        timeoutMs: 120_000,
+      }),
+    enabled: enabled && symbols.length > 0,
+    retry: false,
+    staleTime: 10 * MINUTE,
   });
 }
 

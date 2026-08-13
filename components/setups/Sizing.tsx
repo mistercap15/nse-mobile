@@ -14,7 +14,7 @@ import {
   StatCard,
   StatRow,
 } from "@/components/ui";
-import { useEntryPrices, useRankings } from "@/lib/queries";
+import { useLevels, useRankings } from "@/lib/queries";
 import { useAppStore } from "@/lib/store";
 import { buildSizingModel, type SizedPosition } from "@/lib/sizing";
 import { DASH, MONTH_FULL, num, pct, rupees, rupeesCompact } from "@/lib/format";
@@ -101,33 +101,30 @@ function PositionCard({ p }: { p: SizedPosition }) {
           <LevelCell label="Entry" value={p.entry ? rupees(p.entry) : DASH} color={c.text} />
           <LevelCell
             label="Target"
-            value={lv ? rupees(lv.targetPrice) : DASH}
-            color={lv ? c.green : c.dim}
+            value={lv?.target ? rupees(lv.target.price) : DASH}
+            color={lv?.target ? c.green : c.dim}
           />
           <LevelCell
             label="Stop"
-            value={lv ? rupees(lv.stopPrice) : DASH}
+            value={lv ? rupees(lv.stop.price) : DASH}
             color={lv ? c.red : c.dim}
           />
           <LevelCell
             label="Avg-in"
-            value={lv?.avgInPrice ? rupees(lv.avgInPrice) : DASH}
-            color={lv?.avgInPrice ? c.amber : c.dim}
+            value={lv && p.allocLots >= 2 ? rupees(lv.averageIn) : DASH}
+            color={lv && p.allocLots >= 2 ? c.amber : c.dim}
           />
         </View>
       </Pressable>
 
       {open ? (
         <View style={[styles.expanded, { borderTopColor: c.border }]}>
-          <KV k="Median return (target basis)" v={pct(p.median_return)} />
-          <KV k="Worst month (stop basis)" v={pct(p.worst)} />
-          <KV k="Stop distance" v={lv ? pct(lv.stopPct) : DASH} color={c.red} />
-          <KV
-            k="Expected profit"
-            v={lv ? rupees(lv.expectedProfit) : DASH}
-            color={c.green}
-          />
-          <KV k="Risk at stop" v={lv ? rupees(lv.riskAmount) : DASH} color={c.red} />
+          <KV k="Median return" v={pct(p.median_return)} />
+          <KV k="Worst month" v={pct(p.worst)} />
+          <KV k="Stop distance" v={lv ? pct(-lv.stop.pct, 1, false) : DASH} color={c.red} />
+          <KV k="Stop sits under" v={lv ? lv.stop.basis : DASH} />
+          <KV k="Target basis" v={lv?.target ? lv.target.basis : DASH} />
+          <KV k="Risk:reward" v={lv?.riskReward != null ? `${lv.riskReward.toFixed(1)}x` : DASH} />
           <KV k="Lot size" v={num(p.lot_size)} />
           <KV
             k="Per-lot cost"
@@ -173,18 +170,15 @@ export function SizingPanel() {
   const stocks = useMemo(() => rankings.data?.top_stocks ?? [], [rankings.data]);
   const symbols = useMemo(() => stocks.map((s) => s.symbol), [stocks]);
 
-  const entries = useEntryPrices(month, symbols, symbols.length > 0);
+  // Entry/stop/target now come from the shared engine (entry=open gives the
+  // first trading day's open, the basis this screen has always used).
+  const entries = useLevels(symbols, { month, enabled: symbols.length > 0 });
+  const levelsMap = useMemo(() => entries.data?.levels ?? {}, [entries.data]);
 
   const model = useMemo(
     () =>
-      buildSizingModel(
-        stocks,
-        sizing.capital,
-        sizing.reserve,
-        sizing.avgLotCost,
-        entries.data?.prices ?? {},
-      ),
-    [stocks, sizing, entries.data],
+      buildSizingModel(stocks, sizing.capital, sizing.reserve, sizing.avgLotCost, levelsMap),
+    [stocks, sizing, levelsMap],
   );
 
   return (
@@ -272,8 +266,8 @@ export function SizingPanel() {
             title={`Sized positions (${model.sized.length})`}
             right={
               entries.isLoading ? (
-                <Text style={{ color: c.dim, fontSize: 10 }}>loading prices…</Text>
-              ) : entries.data?.provisionalMonth ? (
+                <Text style={{ color: c.dim, fontSize: 10 }}>loading levels…</Text>
+              ) : model.sized.some((p) => p.provisional) ? (
                 <Text style={{ color: c.amber, fontSize: 10 }}>provisional — live quotes</Text>
               ) : null
             }

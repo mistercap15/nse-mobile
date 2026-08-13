@@ -1,13 +1,15 @@
-import type { EntryPrice, RankedStock } from "./types";
+import type { Levels, RankedStock } from "./types";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Position-sizing engine — a direct port of the web's app/sizing/page.js.
+// Position-sizing engine — conviction score, risk caps and lot allocation.
 //
-// This is the one piece of scoring that does NOT live behind the API: on the web
-// it is pure client-side logic inside the page component, so the native app has
-// to carry its own copy. Thresholds, weights and rounding are reproduced exactly
-// so both clients show the same lots, targets and stops for the same inputs.
-// If the web's numbers ever change, change them here in the same commit.
+// Entry/stop/target used to be computed here too, ported from the web's sizing
+// page. They no longer are: those come from /api/levels, so this screen, Swing
+// Low and Early Entry all quote the same numbers instead of three variants.
+//
+// What remains is the sizing decision itself — how many lots a stock earns and
+// whether capital stretches that far — which is still a port of the web page's
+// scoreStock/allocateLots. Change both together.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ScoredStock extends RankedStock {
@@ -22,20 +24,11 @@ export interface ScoredStock extends RankedStock {
   skipReasons: string[];
 }
 
-export interface Levels {
-  targetPrice: number;
-  expectedProfit: number;
-  stopPrice: number;
-  stopPct: number;
-  riskAmount: number;
-  /** Only set for 2+ lot plans — nothing to stage on a single lot. */
-  avgInPrice: number | null;
-}
-
 export interface SizedPosition extends ScoredStock {
   allocLots: number;
   entry: number | null;
   provisional: boolean;
+  /** From the shared backend engine; null when Upstox is disconnected. */
   levels: Levels | null;
   lotCost: number;
   lotCostReal: boolean;
@@ -46,13 +39,6 @@ export interface SizedPosition extends ScoredStock {
 export function deriveYears(s: RankedStock): number {
   if (s.win_rate > 0) return Math.round((s.positive_years || 0) / (s.win_rate / 100));
   return Math.round((s.data_points || 0) / 12);
-}
-
-/** A live price may or may not ride along on /api/rankings. */
-function priceOf(s: RankedStock): number | null {
-  const raw = s as unknown as Record<string, unknown>;
-  const p = raw.price ?? raw.last_price ?? raw.ltp ?? raw.close ?? null;
-  return typeof p === "number" && Number.isFinite(p) && p > 0 ? p : null;
 }
 
 // ── Conviction score (0–100) + base lots + hard risk caps ───────────────────
@@ -135,37 +121,6 @@ export function allocateLots<T extends { recLots: number }>(
   });
 }
 
-/**
- * Price levels from an entry price. Every level keys off `entry` = the opening
- * price of the first trading day of the month. Returns null when there is no
- * usable entry — callers render "—".
- */
-export function computeLevels(
-  entry: number | null,
-  medianReturn: number,
-  worst: number,
-  lotSize: number,
-  lots: number,
-): Levels | null {
-  if (!Number.isFinite(entry) || (entry ?? 0) <= 0 || !lotSize || !lots) return null;
-  const e = entry as number;
-
-  // TARGET — entry compounded by the median seasonal return for the month.
-  const targetPrice = Math.round(e * (1 + (medianReturn || 0) / 100));
-  const expectedProfit = Math.round((targetPrice - e) * lotSize * lots);
-
-  // STOP — historical worst month, widened 1.2×. `worst` is negative.
-  const stopPct = (worst || 0) * 1.2;
-  const stopPrice = Math.round(e * (1 + stopPct / 100));
-  const riskAmount = Math.round((e - stopPrice) * lotSize * lots);
-
-  // AVERAGE-IN — midpoint of entry and stop, so a planned dip fill still sits
-  // above the stop. Fills the SAME size in two stages; it does not add beyond it.
-  const avgInPrice = lots >= 2 ? Math.round((e + stopPrice) / 2) : null;
-
-  return { targetPrice, expectedProfit, stopPrice, stopPct, riskAmount, avgInPrice };
-}
-
 export interface SizingModel {
   usable: number;
   budget: number;
@@ -188,7 +143,7 @@ export function buildSizingModel(
   capital: number,
   reserve: number,
   avgLotCost: number,
-  prices: Record<string, EntryPrice>,
+  levelsMap: Record<string, Levels>,
 ): SizingModel {
   const usable = Math.max(0, capital - reserve);
   const budget = avgLotCost > 0 ? Math.floor(usable / avgLotCost) : 0;
@@ -200,15 +155,13 @@ export function buildSizingModel(
     .sort((a, b) => b.score - a.score);
 
   const allocated: SizedPosition[] = allocateLots(candidates, budget).map((c) => {
-    const p = prices[c.symbol];
-    const rawEntry = p && Number.isFinite(p.entry) ? p.entry : priceOf(c);
-    const entry = Number.isFinite(rawEntry) && (rawEntry ?? 0) > 0 ? (rawEntry as number) : null;
-    const provisional = p ? Boolean(p.provisional) : false;
+    const levels = levelsMap[c.symbol] ?? null;
+    const entry = levels?.entry?.price ?? null;
+    const provisional = levels?.entry?.basis === "provisional";
 
     // Per-lot cost: real notional when we have an entry, else the flat
     // avg-cost assumption. The lot budget above always uses avgLotCost.
     const lotCost = entry && c.lot_size ? entry * c.lot_size : avgLotCost;
-    const levels = computeLevels(entry, c.median_return, c.worst, c.lot_size, c.allocLots);
 
     return {
       ...c,

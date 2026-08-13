@@ -19,6 +19,7 @@ import { useSwingLow, useUpstoxStatus } from "@/lib/queries";
 import { DASH, num, pct, rupees, sampleNote } from "@/lib/format";
 import { Radius, Spacing, deltaColor, tierColor, useColors } from "@/lib/theme";
 import type { SwingLowStock } from "@/lib/types";
+import { LevelsCard } from "@/components/LevelsCard";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Swing-low mean-reversion screener.
@@ -94,7 +95,7 @@ function SwingRow({ s }: { s: SwingLowStock }) {
           />
           <KV k="Floor touches" v={s.floor ? num(s.floor.touches) : DASH} />
           <KV k="Target (capped +30%)" v={s.rr ? rupees(s.rr.target) : DASH} color={c.green} />
-          <KV k="Stop (below floor)" v={s.rr ? rupees(s.rr.stop) : DASH} color={c.red} />
+          <KV k="Stop" v={s.rr ? rupees(s.rr.stop) : DASH} color={c.red} />
           <KV k="Upside" v={s.rr ? pct(s.rr.upsidePct) : DASH} color={c.green} />
           <KV k="Downside" v={s.rr ? pct(-Math.abs(s.rr.downsidePct)) : DASH} color={c.red} />
           <KV k="Drawdown from high" v={pct(-Math.abs(s.drawdownFromHighPct))} color={c.red} />
@@ -113,6 +114,12 @@ function SwingRow({ s }: { s: SwingLowStock }) {
             }
           />
           <KV k="Lot size" v={s.lotSize ? num(s.lotSize) : DASH} />
+          {s.levels ? (
+            <View style={{ marginTop: Spacing.sm }}>
+              <LevelsCard levels={s.levels} title="Levels" compact />
+            </View>
+          ) : null}
+
           {s.reasons?.length ? (
             <Text style={{ color: c.soft, fontSize: 10, marginTop: 8, lineHeight: 15 }}>
               {s.reasons.join(" · ")}

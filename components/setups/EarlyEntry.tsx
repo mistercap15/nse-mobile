@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ConnectionBanner } from "@/components/ConnectionBanner";
 import { SentimentPanel } from "@/components/Banners";
@@ -15,10 +15,11 @@ import {
   StatCard,
   StatRow,
 } from "@/components/ui";
-import { useEarlyEntry, useUpstoxStatus } from "@/lib/queries";
+import { useEarlyEntry, useLevels, useUpstoxStatus } from "@/lib/queries";
+import { LevelsCard } from "@/components/LevelsCard";
 import { DASH, MONTH_FULL, num, pct, rupees } from "@/lib/format";
 import { Spacing, useColors, type AppColors } from "@/lib/theme";
-import type { EarlyEntryPick } from "@/lib/types";
+import type { EarlyEntryPick, Levels } from "@/lib/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Early entry — next month's seasonal picks measured against live price and
@@ -42,7 +43,7 @@ function resultColor(c: AppColors, result: string): string {
   return result === "PASS" ? c.green : result === "CAUTION" ? c.amber : c.red;
 }
 
-function PickCard({ p }: { p: EarlyEntryPick }) {
+function PickCard({ p, levels }: { p: EarlyEntryPick; levels?: Levels | null }) {
   const c = useColors();
   const [open, setOpen] = useState(false);
   const tint = statusColor(c, p.status);
@@ -125,6 +126,13 @@ function PickCard({ p }: { p: EarlyEntryPick }) {
             </View>
           ))}
 
+          {/* Early entry previously showed support zones but no levels at all —
+              the web page invented its own stop client-side. Both now read the
+              shared engine, so this matches Swing Low and Sizing. */}
+          <View style={{ marginTop: Spacing.sm }}>
+            <LevelsCard levels={levels} title="Levels" compact />
+          </View>
+
           <View style={{ marginTop: Spacing.sm }}>
             <KV k="Current-month WR" v={`${p.currentMonth.win_rate?.toFixed(0)}%`} color={p.currentMonth.is_weak ? c.green : c.amber} />
             <KV k="Momentum" v={p.context ? pct(p.context.momentum) : DASH} />
@@ -173,6 +181,14 @@ export function EarlyEntryPanel() {
   const upstox = useUpstoxStatus();
   const [started, setStarted] = useState(false);
   const { data, isLoading, error, refetch } = useEarlyEntry(started);
+
+  // Levels for every pick, from the shared engine, keyed to the month the scan
+  // targets so the seasonal basis matches what the checklist reasoned about.
+  const symbols = useMemo(() => (data?.results ?? []).map((r) => r.symbol), [data]);
+  const levelsQuery = useLevels(symbols, {
+    month: data?.targetMonth,
+    enabled: symbols.length > 0,
+  });
 
   return (
     <View>
@@ -230,7 +246,11 @@ export function EarlyEntryPanel() {
             />
             <View style={{ gap: Spacing.sm }}>
               {data.results.map((p) => (
-                <PickCard key={p.symbol} p={p} />
+                <PickCard
+                  key={p.symbol}
+                  p={p}
+                  levels={levelsQuery.data?.levels?.[p.symbol]}
+                />
               ))}
             </View>
           </>

@@ -126,6 +126,8 @@ export interface SwingLowStock {
   bounceAvgPct: number | null;
   bounceSamples: number;
   rr: RewardRisk | null;
+  /** Shared-engine detail behind `rr` — stop basis, warnings, risk check. */
+  levels?: Levels | null;
   seasonalWR: number | null;
   seasonalN: number | null;
   inSeason: boolean;
@@ -166,6 +168,82 @@ export interface EntryPricesResponse {
   month: number;
   year: number;
   provisionalMonth: boolean;
+}
+
+// ── Universe (search) ───────────────────────────────────────────────────────
+
+export interface UniverseSymbol {
+  symbol: string;
+  sector: string | null;
+  lotSize: number | null;
+}
+
+export interface UniverseResponse {
+  count: number;
+  symbols: UniverseSymbol[];
+  sectors: string[];
+  generatedAt: string | null;
+  minYear: number | null;
+  maxYear: number | null;
+  error?: string;
+}
+
+// ── Trade levels ────────────────────────────────────────────────────────────
+// Produced by the backend's shared engine (app/lib/levels.js). Every screen
+// renders these rather than computing its own, which is what stops the sizing,
+// swing-low and early-entry screens disagreeing about the same stock.
+
+export interface SeasonalStats {
+  medianReturn: number;
+  worst: number;
+  best: number;
+  winRate: number;
+  n: number;
+}
+
+export interface Levels {
+  strategy: "seasonal" | "reversion" | string;
+  entry: { price: number; basis: string };
+  stop: {
+    price: number;
+    pct: number;
+    /** MA50 / 52W_LOW / FLOOR / SEASONAL_WORST / FALLBACK … */
+    basis: string;
+    anchorPrice: number | null;
+    /** Structural stop risks more than the month's worst case — size down. */
+    exceedsSeasonalRisk: boolean;
+    seasonalRiskNormPct: number | null;
+  };
+  target: {
+    price: number;
+    pct: number;
+    basis: "SEASONAL_MEDIAN" | "MEAN_REVERSION" | string;
+    capped: boolean;
+  } | null;
+  riskReward: number | null;
+  averageIn: number | null;
+  riskAmount: number | null;
+  rewardAmount: number | null;
+  warnings: string[];
+  /** Present on /api/levels rows, absent inside swing-low's embedded copy. */
+  sector?: string | null;
+  lotSize?: number | null;
+  ma200?: number | null;
+  supports?: SupportZone[];
+  seasonality?: SeasonalStats | null;
+}
+
+export interface LevelsResponse {
+  month: number;
+  strategy: string;
+  entryMode: string;
+  seasonality: Record<string, SeasonalStats | null>;
+  levels: Record<string, Levels>;
+  count: number;
+  connected: boolean;
+  cached?: boolean;
+  note?: string;
+  error?: string;
 }
 
 // ── Single-stock analysis ───────────────────────────────────────────────────

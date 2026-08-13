@@ -15,7 +15,8 @@ import {
   StatRow,
 } from "@/components/ui";
 import { ConnectionBanner } from "@/components/ConnectionBanner";
-import { useAnalysis, useCandles, useQuotes } from "@/lib/queries";
+import { LevelsCard } from "@/components/LevelsCard";
+import { useAnalysis, useCandles, useLevels, useQuotes } from "@/lib/queries";
 import { DASH, MONTHS, currentMonthIST, num, pct, rupees } from "@/lib/format";
 import { Spacing, deltaColor, signalColor, useColors, useIsDark } from "@/lib/theme";
 import type { MonthSeasonality } from "@/lib/types";
@@ -41,6 +42,11 @@ export function StockAnalysis({ symbol }: { symbol: string }) {
   const candles = useCandles(symbol, RANGE_DAYS[range]);
   const quotes = useQuotes([symbol]);
   const quote = quotes.data?.quotes?.[symbol];
+
+  // Suggested entry/stop/target from the shared backend engine — the same
+  // numbers the setup screens show, rather than a fourth local calculation.
+  const levelsQuery = useLevels([symbol], { month: currentMonthIST() });
+  const levels = levelsQuery.data?.levels?.[symbol] ?? null;
 
   const thisMonth = currentMonthIST();
 
@@ -99,6 +105,10 @@ export function StockAnalysis({ symbol }: { symbol: string }) {
           </Text>
         </View>
       ) : null}
+
+      <View style={{ marginTop: Spacing.md }}>
+        <LevelsCard levels={levels} title={`Suggested trade · ${MONTHS[thisMonth - 1]}`} />
+      </View>
 
       {/* Current-month seasonality up front — it's why you opened this screen. */}
       <View style={{ marginTop: Spacing.md }}>

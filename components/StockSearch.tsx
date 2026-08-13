@@ -3,36 +3,48 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Radius, Spacing, useColors } from "@/lib/theme";
 import { useAppStore } from "@/lib/store";
-import { useRankings } from "@/lib/queries";
+import { useUniverse } from "@/lib/queries";
+import { num } from "@/lib/format";
 import { Label } from "./ui";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Symbol search. The universe isn't bundled in the app (§10 — no duplicated
-// dataset), so the candidate list is drawn from the current month's rankings
-// plus whatever the user has recently viewed. Typing any symbol still works:
-// the analysis endpoint takes a free-text symbol.
+// Symbol search over the whole F&O universe.
+//
+// This used to scrape candidates out of the current month's rankings, which is
+// about 75 of the 181 names — so typing any of the other 106 produced no
+// suggestion at all. It now reads /api/universe, which is snapshot-derived,
+// needs no Upstox and is fetched once per session.
+//
+// Ranking: exact match, then prefix, then substring, so typing "REL" puts
+// RELIANCE at the top rather than burying it behind an alphabetical accident.
 // ─────────────────────────────────────────────────────────────────────────────
+
+const MAX_RESULTS = 12;
 
 export function StockSearch({ onSelect }: { onSelect: (symbol: string) => void }) {
   const c = useColors();
   const [query, setQuery] = useState("");
-  const month = useAppStore((s) => s.selectedMonth);
   const recent = useAppStore((s) => s.recentStocks);
-  const { data } = useRankings(month, "ALL", 50);
+  const { data, isLoading, error } = useUniverse();
 
-  const universe = useMemo(() => {
-    const all = [
-      ...(data?.top_stocks ?? []),
-      ...(data?.avoid_stocks ?? []),
-      ...(data?.short_candidates ?? []),
-    ].map((s) => s.symbol);
-    return Array.from(new Set([...recent, ...all]));
-  }, [data, recent]);
-
+  const universe = useMemo(() => data?.symbols ?? [], [data]);
   const q = query.trim().toUpperCase();
+
   const matches = useMemo(() => {
     if (!q) return [];
-    return universe.filter((s) => s.includes(q)).slice(0, 10);
+    const scored = universe
+      .map((s) => {
+        const sym = s.symbol;
+        if (sym === q) return { s, rank: 0 };
+        if (sym.startsWith(q)) return { s, rank: 1 };
+        if (sym.includes(q)) return { s, rank: 2 };
+        // Sector is worth matching too — "BANK" should surface the banks.
+        if (s.sector?.toUpperCase().includes(q)) return { s, rank: 3 };
+        return null;
+      })
+      .filter((x): x is { s: (typeof universe)[number]; rank: number } => x !== null)
+      .sort((a, b) => a.rank - b.rank || a.s.symbol.localeCompare(b.s.symbol));
+    return scored.slice(0, MAX_RESULTS).map((x) => x.s);
   }, [q, universe]);
 
   const submit = (symbol: string) => {
@@ -50,7 +62,9 @@ export function StockSearch({ onSelect }: { onSelect: (symbol: string) => void }
           value={query}
           onChangeText={setQuery}
           onSubmitEditing={() => submit(q)}
-          placeholder="Search a symbol — e.g. RELIANCE"
+          placeholder={
+            isLoading ? "Loading symbols…" : `Search ${num(universe.length || 181)} F&O stocks`
+          }
           placeholderTextColor={c.dim}
           autoCapitalize="characters"
           autoCorrect={false}
@@ -64,21 +78,41 @@ export function StockSearch({ onSelect }: { onSelect: (symbol: string) => void }
         ) : null}
       </View>
 
-      {q && matches.length ? (
-        <View style={{ marginTop: Spacing.sm, gap: 4 }}>
-          {matches.map((s) => (
-            <Pressable
-              key={s}
-              onPress={() => submit(s)}
-              style={({ pressed }) => [
-                styles.suggestion,
-                { backgroundColor: c.card, borderColor: c.border, opacity: pressed ? 0.7 : 1 },
-              ]}
-            >
-              <Text style={{ color: c.text, fontSize: 13, fontWeight: "600" }}>{s}</Text>
-            </Pressable>
-          ))}
-        </View>
+      {error ? (
+        <Text style={{ color: c.amber, fontSize: 11, marginTop: 6 }}>
+          Couldn&apos;t load the symbol list — you can still type a symbol exactly and press search.
+        </Text>
+      ) : null}
+
+      {q ? (
+        matches.length ? (
+          <View style={{ marginTop: Spacing.sm, gap: 4 }}>
+            {matches.map((s) => (
+              <Pressable
+                key={s.symbol}
+                onPress={() => submit(s.symbol)}
+                style={({ pressed }) => [
+                  styles.suggestion,
+                  { backgroundColor: c.card, borderColor: c.border, opacity: pressed ? 0.7 : 1 },
+                ]}
+              >
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={{ color: c.text, fontSize: 13, fontWeight: "700" }}>{s.symbol}</Text>
+                  {s.sector ? (
+                    <Text style={{ color: c.dim, fontSize: 10, marginTop: 1 }}>{s.sector}</Text>
+                  ) : null}
+                </View>
+                {s.lotSize ? (
+                  <Text style={{ color: c.dim, fontSize: 10 }}>lot {num(s.lotSize)}</Text>
+                ) : null}
+              </Pressable>
+            ))}
+          </View>
+        ) : (
+          <Text style={{ color: c.dim, fontSize: 11, marginTop: 8 }}>
+            No F&amp;O stock matches “{q}”.
+          </Text>
+        )
       ) : null}
 
       {!q && recent.length ? (
@@ -120,5 +154,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  suggestion: { borderWidth: 1, borderRadius: Radius.sm, paddingVertical: 9, paddingHorizontal: 12 },
+  suggestion: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: Radius.sm,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+  },
 });
