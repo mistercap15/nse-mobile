@@ -9,6 +9,7 @@ import {
   Label,
   SectionHeader,
   SkeletonCard,
+  useFillCount,
 } from "@/components/ui";
 import { useStrategies } from "@/lib/queries";
 import { currentMonthIST, num } from "@/lib/format";
@@ -125,6 +126,7 @@ export default function SectorRotationScreen() {
   const c = useColors();
   const { data, isLoading, error, refetch } = useStrategies();
   const now = currentMonthIST();
+  const skeletonCards = useFillCount(120, 130);
 
   const strategies = data?.strategies ?? [];
   const current = strategies.find((s) => s.month === now);
@@ -144,7 +146,7 @@ export default function SectorRotationScreen() {
       {isLoading ? (
         <View style={{ marginTop: Spacing.lg }}>
           <View style={{ gap: Spacing.sm }}>
-            {Array.from({ length: 4 }, (_, i) => (
+            {Array.from({ length: skeletonCards }, (_, i) => (
               <SkeletonCard key={i} height={70} />
             ))}
           </View>
@@ -152,17 +154,17 @@ export default function SectorRotationScreen() {
       ) : error ? (
         <ErrorState message={(error as Error).message} onRetry={refetch} />
       ) : !strategies.length ? (
-        <EmptyState title="No strategies" hint="The strategy calendar returned nothing." />
+        <EmptyState emoji="🧭" title="No strategies" hint="The strategy calendar returned nothing." />
       ) : (
         <>
           {current ? (
             <>
-              <SectionHeader title="This month" />
+              <SectionHeader title="This month" icon="today" />
               <StrategyCard s={current} highlight />
             </>
           ) : null}
 
-          <SectionHeader title="The rest of the year" />
+          <SectionHeader title="The rest of the year" icon="repeat" />
           <View style={{ gap: Spacing.sm }}>
             {rest.map((s) => (
               <StrategyCard key={s.month} s={s} />

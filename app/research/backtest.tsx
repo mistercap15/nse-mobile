@@ -91,7 +91,7 @@ export default function BacktestScreen() {
 
       {isLoading ? (
         <View style={{ marginTop: Spacing.lg }}>
-          <SkeletonScreen rows={4} stats={3} />
+          <SkeletonScreen stats={3} charts={2} rows={0} usedAbove={210} />
         </View>
       ) : error ? (
         <ErrorState message={(error as Error).message} onRetry={refetch} />
@@ -130,7 +130,7 @@ export default function BacktestScreen() {
             </StatRow>
           </View>
 
-          <SectionHeader title="Equity curve" />
+          <SectionHeader title="Equity curve" icon="analytics" />
           <Card style={{ padding: Spacing.md }}>
             <LineChart
               values={data.curve.map((p) => p.equity)}
@@ -147,7 +147,7 @@ export default function BacktestScreen() {
             />
           </Card>
 
-          <SectionHeader title="Yearly returns" />
+          <SectionHeader title="Yearly returns" icon="bar-chart" />
           <Card style={{ padding: Spacing.md }}>
             <BarChart
               values={data.yearly.map((y) => y.ret)}
@@ -156,7 +156,7 @@ export default function BacktestScreen() {
             />
           </Card>
 
-          <SectionHeader title="Latest month" />
+          <SectionHeader title="Latest month" icon="calendar" />
           <Card style={{ padding: Spacing.md }}>
             <KV k="Month" v={data.latest.ym} />
             <KV k="System return" v={pct(data.latest.ret)} color={deltaColor(c, data.latest.ret)} />
@@ -191,7 +191,7 @@ export default function BacktestScreen() {
             ) : null}
           </Card>
 
-          <SectionHeader title="Detail" />
+          <SectionHeader title="Detail" icon="information-circle" />
           <Card style={{ padding: Spacing.md }}>
             <StatsTable label="System" s={stats} />
             <View style={{ height: Spacing.md }} />

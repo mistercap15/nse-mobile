@@ -1,6 +1,6 @@
 import React from "react";
 import { Text, View } from "react-native";
-import { Radius, Spacing, useColors } from "@/lib/theme";
+import { Spacing, useColors } from "@/lib/theme";
 import type { Regime, Sentiment } from "@/lib/types";
 import { Card, Label } from "./ui";
 
@@ -15,16 +15,7 @@ export function RegimeBanner({ regime }: { regime?: Regime }) {
 
   const tint = regime.riskOn ? c.green : c.red;
   return (
-    <View
-      style={{
-        borderLeftWidth: 3,
-        borderLeftColor: tint,
-        backgroundColor: c.card,
-        borderRadius: Radius.md,
-        padding: Spacing.md,
-        marginBottom: Spacing.sm,
-      }}
-    >
+    <Card stripe={tint} tint={tint} style={{ padding: Spacing.md, marginBottom: Spacing.sm, paddingLeft: Spacing.md + 4 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <Text style={{ color: tint, fontWeight: "800", fontSize: 12, letterSpacing: 0.5 }}>
           {regime.label?.toUpperCase()}
@@ -39,7 +30,7 @@ export function RegimeBanner({ regime }: { regime?: Regime }) {
           {regime.note}
         </Text>
       ) : null}
-    </View>
+    </Card>
   );
 }
 

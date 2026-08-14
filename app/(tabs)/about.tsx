@@ -130,7 +130,7 @@ export default function AboutScreen() {
         </Card>
 
         {/* Developer */}
-        <SectionHeader title="Developer" />
+        <SectionHeader title="Developer" icon="person" tint={c.purple} />
         <Card style={{ padding: Spacing.md }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.md }}>
             <View
@@ -182,7 +182,7 @@ export default function AboutScreen() {
         </Card>
 
         {/* Connection */}
-        <SectionHeader title="Connection" />
+        <SectionHeader title="Connection" icon="link" />
         <Card style={{ padding: Spacing.md }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <Text style={{ color: c.soft, fontSize: 12 }}>Upstox</Text>
@@ -245,7 +245,7 @@ export default function AboutScreen() {
         </Card>
 
         {/* Settings */}
-        <SectionHeader title="Settings" />
+        <SectionHeader title="Settings" icon="options" />
         <Card style={{ padding: Spacing.md }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Ionicons
@@ -279,7 +279,7 @@ export default function AboutScreen() {
         </View>
 
         {/* Method + disclaimer */}
-        <SectionHeader title="How to read the numbers" />
+        <SectionHeader title="How to read the numbers" icon="school" tint={c.amber} />
         <Card style={{ padding: Spacing.md }}>
           <Label style={{ fontSize: 10 }}>Data</Label>
           <Text style={{ color: c.soft, fontSize: 11, marginTop: 5, lineHeight: 17 }}>
@@ -298,8 +298,11 @@ export default function AboutScreen() {
           </Text>
         </Card>
 
-        <Text style={{ color: c.dim, fontSize: 10, textAlign: "center", marginTop: Spacing.xl }}>
-          Built with Expo · © {new Date().getFullYear()} {DEVELOPER.name}
+        <Text style={{ color: c.dim, fontSize: 11, textAlign: "center", marginTop: Spacing.xl }}>
+          ⚛️ Built with React Native · Expo
+        </Text>
+        <Text style={{ color: c.dim, fontSize: 10, textAlign: "center", marginTop: 4 }}>
+          © {new Date().getFullYear()} {DEVELOPER.name}
         </Text>
       </ScrollView>
     </SafeAreaView>

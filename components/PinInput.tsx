@@ -70,10 +70,11 @@ export function PinInput({
           const filled = i < value.length;
           const isNext = focused && i === value.length;
 
-          // Three visual states, in priority order: error, filled, awaiting
-          // input. A plain empty box is the quiet default.
+          // The active box is marked by its BORDER only. It previously also got
+          // an accent fill, an accent caret and an accent glow — four cues at
+          // once, which made one box read as a solid blue tile next to five
+          // white ones. The border alone is enough to say "input lands here".
           const border = error ? c.red : isNext ? c.accent : filled ? c.soft : c.border;
-          const fill = error ? c.redBg : isNext ? c.accentBg : c.card;
 
           return (
             <View
@@ -81,27 +82,18 @@ export function PinInput({
               style={[
                 styles.box,
                 {
-                  backgroundColor: fill,
+                  backgroundColor: error ? c.redBg : c.card,
                   borderColor: border,
+                  borderWidth: isNext ? 2 : 1.5,
                   opacity: disabled ? 0.45 : 1,
-                  // Lift the active box so the eye tracks where input lands.
-                  shadowColor: c.accent,
-                  shadowOpacity: isNext ? 0.35 : 0,
-                  shadowRadius: 8,
-                  shadowOffset: { width: 0, height: 2 },
-                  elevation: isNext ? 3 : 0,
                 },
               ]}
             >
               {filled ? (
-                <View
-                  style={[styles.dot, { backgroundColor: error ? c.red : c.text }]}
-                />
-              ) : isNext ? (
-                // Caret bar rather than a dot, so "waiting here" reads
-                // differently from "a digit is entered".
-                <View style={[styles.caret, { backgroundColor: c.accent }]} />
+                <View style={[styles.dot, { backgroundColor: error ? c.red : c.text }]} />
               ) : (
+                // Same quiet dash whether or not this is the next box — the
+                // border already carries that information.
                 <View style={[styles.placeholder, { backgroundColor: c.border }]} />
               )}
             </View>
@@ -117,12 +109,23 @@ export function PinInput({
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         keyboardType="number-pad"
-        textContentType="password"
-        secureTextEntry
+        // Deliberately NOT secureTextEntry. The field is invisible and the dots
+        // below are our own rendering, so it bought no masking — while making
+        // Android treat this as a password field, which is where the caret,
+        // selection highlight and autofill chrome came from.
         maxLength={LENGTH}
         editable={!disabled}
+        // These four are belt-and-braces; opacity:0 on the style is what
+        // actually hides the field. caretHidden and selectionColor were tried
+        // on their own and did NOT suppress the caret or the blue selection
+        // highlight on Samsung's IME.
         caretHidden
         selectionColor="transparent"
+        underlineColorAndroid="transparent"
+        importantForAutofill="no"
+        autoComplete="off"
+        // Long-press would otherwise raise a paste/select menu over the boxes.
+        contextMenuHidden
         accessibilityLabel="Enter your six digit PIN"
         style={[StyleSheet.absoluteFill, styles.overlay]}
       />
@@ -137,15 +140,15 @@ const styles = StyleSheet.create({
     width: BOX_W,
     height: BOX_H,
     borderRadius: Radius.md + 2,
-    borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
   dot: { width: 11, height: 11, borderRadius: 6 },
-  caret: { width: 2, height: 22, borderRadius: 1 },
   placeholder: { width: 8, height: 2, borderRadius: 1, opacity: 0.7 },
-  // Transparent rather than opacity:0 — some Android builds skip touch
-  // dispatch to fully transparent views, and the text must stay invisible
-  // regardless since the boxes below are the real display.
-  overlay: { color: "transparent", backgroundColor: "transparent", fontSize: 1 },
+  // opacity:0, not just a transparent colour. A transparent *colour* only hides
+  // the glyphs — the caret, the selection highlight and the IME's composing
+  // background still paint, which is the blue slab that kept appearing over the
+  // first box. opacity:0 hides the view outright while it still receives
+  // touches, so tapping continues to open the keyboard natively.
+  overlay: { opacity: 0, fontSize: 1 },
 });

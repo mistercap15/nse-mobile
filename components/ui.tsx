@@ -9,7 +9,20 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-import { AppColors, Radius, Spacing, useColors } from "@/lib/theme";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { LinearGradient } from "expo-linear-gradient";
+import {
+  AppColors,
+  Radius,
+  Spacing,
+  Type,
+  elevation,
+  hairline,
+  surfaceGradient,
+  tintGradient,
+  useColors,
+  useIsDark,
+} from "@/lib/theme";
 import { DASH } from "@/lib/format";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18,31 +31,96 @@ import { DASH } from "@/lib/format";
 // screen belongs here so the two clients stay visually in step.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Surface primitive. A flat fill reads as a rectangle; a two-stop gradient plus
+ * a hairline gives the card an edge and a little light, which is most of what
+ * separates "boxes of data" from something that looks designed.
+ *
+ * `tint` washes the surface with a status colour — used sparingly, for the one
+ * card on a screen that deserves the eye.
+ */
 export function Card({
   children,
   style,
+  tint,
+  level = 1,
+  flat = false,
+  stripe,
+  radius = Radius.lg,
 }: {
   children: React.ReactNode;
   style?: ViewStyle | ViewStyle[];
+  tint?: string;
+  level?: 1 | 2 | 3;
+  flat?: boolean;
+  /** Colour bar down the left edge, clipped to the card's corners. */
+  stripe?: string;
+  radius?: number;
 }) {
   const c = useColors();
+  const isDark = useIsDark();
+  const colors = tint ? tintGradient(tint, isDark) : surfaceGradient(c, isDark);
+
+  // iOS clips a shadow when the same view sets overflow:hidden, so the shadow
+  // lives on the outer view and the clipping on the inner one.
   return (
     <View
       style={[
-        { backgroundColor: c.card, borderColor: c.border, borderWidth: 1, borderRadius: Radius.md },
+        { borderRadius: radius, backgroundColor: c.card },
+        !flat && elevation(isDark, level, tint ?? stripe),
         style,
       ]}
     >
+      {/* Everything decorative lives inside this clipped layer, so bars follow
+          the card's curve instead of squaring off at the corners. A 3px bar
+          cannot fake an 18px radius on its own. */}
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            borderRadius: radius,
+            borderWidth: 1,
+            // Tint at partial alpha: a full-strength border on a small card
+            // reads as an alert box rather than an accent.
+            borderColor: tint ? `${tint}59` : hairline(c, isDark),
+            overflow: "hidden",
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={colors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        {stripe ? (
+          <LinearGradient
+            colors={[stripe, `${stripe}99`]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3.5 }}
+          />
+        ) : null}
+      </View>
       {children}
     </View>
   );
 }
 
 /** Small uppercase label — the web's `text-dim uppercase tracking-widest`. */
-export function Label({ children, style }: { children: React.ReactNode; style?: TextStyle }) {
+export function Label({
+  children,
+  style,
+  numberOfLines,
+}: {
+  children: React.ReactNode;
+  style?: TextStyle;
+  numberOfLines?: number;
+}) {
   const c = useColors();
   return (
     <Text
+      numberOfLines={numberOfLines}
       style={[
         { color: c.dim, fontSize: 11, fontWeight: "600", letterSpacing: 1.2, textTransform: "uppercase" },
         style,
@@ -69,10 +147,35 @@ export function ScreenTitle({ eyebrow, title, subtitle }: { eyebrow: string; tit
   );
 }
 
-export function SectionHeader({ title, right }: { title: string; right?: React.ReactNode }) {
+export function SectionHeader({
+  title,
+  right,
+  icon,
+  tint,
+}: {
+  title: string;
+  right?: React.ReactNode;
+  /** Ionicons name. Falls back to the accent rule when omitted. */
+  icon?: React.ComponentProps<typeof Ionicons>["name"];
+  tint?: string;
+}) {
+  const c = useColors();
+  const isDark = useIsDark();
+  const color = tint ?? c.accent;
   return (
     <View style={styles.sectionHeader}>
-      <Label>{title}</Label>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+        {icon ? (
+          // A small tinted chip. Gives each section a glanceable identity
+          // instead of six identical grey captions down the screen.
+          <View style={[styles.sectionIcon, { backgroundColor: tintGradient(color, isDark)[0] }]}>
+            <Ionicons name={icon} size={12} color={color} />
+          </View>
+        ) : (
+          <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: color }} />
+        )}
+        <Label numberOfLines={1}>{title}</Label>
+      </View>
       {right}
     </View>
   );
@@ -94,18 +197,31 @@ export function StatCard({
   flex?: number;
 }) {
   const c = useColors();
+  // No bar along the top edge. At an 18px corner radius a 2.5px line at y=0
+  // falls almost entirely outside the card's silhouette at both ends, so it
+  // reads as a detached floating line however it's clipped or inset. The tinted
+  // surface carries the same meaning and follows the curve.
   return (
-    <Card style={{ flex, padding: Spacing.md, minWidth: 0 }}>
-      <Label style={{ fontSize: 10 }}>{label}</Label>
+    <Card tint={color} style={{ flex, padding: Spacing.md, minWidth: 0 }}>
+      <Label style={{ fontSize: 9.5, letterSpacing: 0.9 }} numberOfLines={1}>
+        {label}
+      </Label>
       <Text
         numberOfLines={1}
         adjustsFontSizeToFit
-        style={{ color: color ?? c.text, fontSize: 19, fontWeight: "700", marginTop: 6 }}
+        style={{
+          color: color ?? c.text,
+          fontSize: 21,
+          fontWeight: "800",
+          letterSpacing: -0.4,
+          marginTop: 7,
+          ...Type.numeric,
+        }}
       >
         {value}
       </Text>
       {sub ? (
-        <Text numberOfLines={2} style={{ color: c.dim, fontSize: 10, marginTop: 3 }}>
+        <Text numberOfLines={2} style={{ color: c.dim, fontSize: 10, marginTop: 4, lineHeight: 14 }}>
           {sub}
         </Text>
       ) : null}
@@ -130,23 +246,27 @@ export function Badge({
   filled?: boolean;
   small?: boolean;
 }) {
+  const isDark = useIsDark();
+  // Outlined badges get a faint wash of their own colour rather than sitting
+  // hollow — legible at 9px without shouting.
+  const wash = tintGradient(color, isDark)[0];
   return (
     <View
       style={{
-        paddingHorizontal: small ? 6 : 8,
-        paddingVertical: small ? 2 : 3,
-        borderRadius: Radius.sm,
+        paddingHorizontal: small ? 7 : 9,
+        paddingVertical: small ? 2.5 : 4,
+        borderRadius: Radius.full,
         borderWidth: 1,
-        borderColor: color,
-        backgroundColor: filled ? color : "transparent",
+        borderColor: filled ? color : `${color}66`,
+        backgroundColor: filled ? color : wash,
       }}
     >
       <Text
         style={{
-          color: filled ? "#000" : color,
+          color: filled ? (isDark ? "#0A0A0A" : "#FFFFFF") : color,
           fontSize: small ? 9 : 10,
           fontWeight: "800",
-          letterSpacing: 0.5,
+          letterSpacing: 0.6,
         }}
       >
         {text}
@@ -184,31 +304,49 @@ export function Button({
   style?: ViewStyle;
 }) {
   const c = useColors();
+  const isDark = useIsDark();
   const tint = variant === "danger" ? c.red : c.accent;
   const solid = variant === "primary";
+  const onSolid = isDark ? "#08101F" : "#FFFFFF";
+
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
       style={({ pressed }) => [
         {
-          paddingVertical: 12,
-          paddingHorizontal: Spacing.lg,
-          borderRadius: Radius.md,
+          borderRadius: Radius.full,
           borderWidth: 1,
-          borderColor: tint,
-          backgroundColor: solid ? tint : "transparent",
-          alignItems: "center",
-          justifyContent: "center",
-          opacity: disabled ? 0.45 : pressed ? 0.75 : 1,
-          flexDirection: "row",
-          gap: 8,
+          borderColor: solid ? "transparent" : `${tint}80`,
+          overflow: "hidden",
+          opacity: disabled ? 0.4 : 1,
+          // Scale beats an opacity dip: it reads as a press rather than a
+          // momentary render glitch.
+          transform: [{ scale: pressed ? 0.975 : 1 }],
         },
+        solid && !disabled && elevation(isDark, 2),
         style,
       ]}
     >
-      {loading ? <ActivityIndicator size="small" color={solid ? c.bg : tint} /> : null}
-      <Text style={{ color: solid ? c.bg : tint, fontWeight: "700", fontSize: 13 }}>{label}</Text>
+      {solid ? (
+        // Only "primary" is solid, so this is always the accent→purple ramp.
+        // Destructive actions stay outlined on purpose: a big filled red button
+        // invites the tap it is trying to make you think about.
+        <LinearGradient
+          colors={[tint, c.purple]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: tintGradient(tint, isDark)[0] }]} />
+      )}
+      <View style={styles.buttonInner}>
+        {loading ? <ActivityIndicator size="small" color={solid ? onSolid : tint} /> : null}
+        <Text style={{ color: solid ? onSolid : tint, fontWeight: "800", fontSize: 13, letterSpacing: 0.2 }}>
+          {label}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -236,8 +374,8 @@ export function Segmented<T extends string>({
             onPress={() => onChange(o.value)}
             style={{
               paddingVertical: 8,
-              paddingHorizontal: 14,
-              borderRadius: Radius.sm,
+              paddingHorizontal: 15,
+              borderRadius: Radius.full,
               backgroundColor: active ? c.accent : "transparent",
             }}
           >
@@ -245,7 +383,7 @@ export function Segmented<T extends string>({
               style={{
                 color: active ? c.bg : c.soft,
                 fontSize: 12,
-                fontWeight: "700",
+                fontWeight: active ? "800" : "600",
               }}
             >
               {o.label}
@@ -291,10 +429,19 @@ export function Loading({ text = "Loading…", sub }: { text?: string; sub?: str
   );
 }
 
-export function EmptyState({ title, hint }: { title: string; hint?: string }) {
+export function EmptyState({
+  title,
+  hint,
+  emoji = "🔍",
+}: {
+  title: string;
+  hint?: string;
+  emoji?: string;
+}) {
   const c = useColors();
   return (
     <View style={styles.centered}>
+      <Text style={{ fontSize: 30, marginBottom: 10 }}>{emoji}</Text>
       <Text style={{ color: c.soft, fontSize: 14, fontWeight: "600", textAlign: "center" }}>
         {title}
       </Text>
@@ -311,6 +458,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
   const c = useColors();
   return (
     <View style={styles.centered}>
+      <Text style={{ fontSize: 30, marginBottom: 10 }}>⚠️</Text>
       <Text style={{ color: c.red, fontSize: 13, fontWeight: "700" }}>Something went wrong</Text>
       <Text style={{ color: c.dim, fontSize: 12, marginTop: 6, textAlign: "center", lineHeight: 17 }}>
         {message}
@@ -329,6 +477,10 @@ export {
   SkeletonStatRow,
   SkeletonCard,
   SkeletonScreen,
+  SkeletonChart,
+  SkeletonHero,
+  SkeletonPills,
+  useFillCount,
 } from "./Skeleton";
 
 // ── Key/value line, used inside expanded rows ───────────────────────────────
@@ -374,13 +526,28 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
   },
   statRow: { flexDirection: "row", gap: Spacing.sm },
+  sectionIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   segmented: {
     flexDirection: "row",
-    borderRadius: Radius.md,
+    borderRadius: Radius.full,
     borderWidth: 1,
     padding: 3,
     gap: 3,
     alignSelf: "flex-start",
+  },
+  buttonInner: {
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
   centered: { alignItems: "center", justifyContent: "center", paddingVertical: 48, paddingHorizontal: Spacing.lg },
   kv: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 4 },

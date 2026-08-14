@@ -70,12 +70,12 @@ export function StockAnalysis({ symbol }: { symbol: string }) {
   const current = seasonality.find((s) => s.month_num === thisMonth) ?? null;
   const chartWidth = width - Spacing.md * 2 - 2 /* card border */ - Spacing.md * 2;
 
-  if (analysis.isLoading) return <SkeletonScreen rows={4} stats={3} />;
+  if (analysis.isLoading) return <SkeletonScreen stats={3} charts={2} rows={2} usedAbove={120} />;
   if (analysis.error) {
     return <ErrorState message={(analysis.error as Error).message} onRetry={analysis.refetch} />;
   }
   if (!analysis.data || !seasonality.length) {
-    return <EmptyState title={`No data for ${symbol}`} hint="This symbol may not be in the F&O universe." />;
+    return <EmptyState emoji="🕳️" title={`No data for ${symbol}`} hint="This symbol may not be in the F&O universe." />;
   }
 
   return (
@@ -150,7 +150,7 @@ export function StockAnalysis({ symbol }: { symbol: string }) {
       </View>
 
       {/* Median return by month */}
-      <SectionHeader title="Median return by month" />
+      <SectionHeader title="Median return by month" icon="bar-chart" />
       <Card style={{ padding: Spacing.md }}>
         <BarChart
           values={seasonality.map((s) => s.median_return)}
@@ -161,6 +161,7 @@ export function StockAnalysis({ symbol }: { symbol: string }) {
 
       {/* Price history */}
       <SectionHeader
+        icon="pulse"
         title="Daily price"
         right={
           <Segmented<Range>
@@ -201,7 +202,7 @@ export function StockAnalysis({ symbol }: { symbol: string }) {
       </Card>
 
       {/* Heatmap */}
-      <SectionHeader title="Seasonality heatmap" />
+      <SectionHeader title="Seasonality heatmap" icon="grid" />
       <Card style={{ padding: Spacing.md }}>
         <SeasonalityHeatmap series={series} isDark={isDark} highlightMonth={thisMonth} />
         <Text style={{ color: c.dim, fontSize: 10, marginTop: Spacing.sm, lineHeight: 15 }}>
@@ -210,7 +211,7 @@ export function StockAnalysis({ symbol }: { symbol: string }) {
       </Card>
 
       {/* Month table */}
-      <SectionHeader title="Month by month" />
+      <SectionHeader title="Month by month" icon="calendar" />
       <Card style={{ padding: Spacing.sm }}>
         {seasonality.map((s: MonthSeasonality) => (
           <View

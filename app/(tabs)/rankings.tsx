@@ -87,7 +87,7 @@ export default function RankingsScreen() {
 
         {isLoading ? (
           <View style={{ marginTop: Spacing.lg }}>
-            <SkeletonScreen rows={6} stats={3} />
+            <SkeletonScreen stats={3} usedAbove={190} />
           </View>
         ) : error ? (
           <ErrorState message={(error as Error).message} onRetry={refetch} />
@@ -133,6 +133,8 @@ export default function RankingsScreen() {
             </View>
 
             <SectionHeader
+              icon={side === "long" ? "trending-up" : "trending-down"}
+              tint={side === "long" ? c.green : c.red}
               title={side === "long" ? "Ranked longs" : "Short candidates"}
               right={
                 <Text style={{ color: c.dim, fontSize: 10 }}>
@@ -143,6 +145,7 @@ export default function RankingsScreen() {
 
             {list.length === 0 ? (
               <EmptyState
+                emoji={side === "long" ? "🌱" : "🐻"}
                 title={side === "long" ? "No long candidates" : "No short candidates"}
                 hint={`Nothing cleared the bar for ${MONTH_FULL[month - 1]}.`}
               />
@@ -156,7 +159,7 @@ export default function RankingsScreen() {
 
             {side === "long" && (data?.avoid_stocks?.length ?? 0) > 0 ? (
               <>
-                <SectionHeader title="Avoid this month" />
+                <SectionHeader title="Avoid this month" icon="warning" tint={c.red} />
                 <View style={{ gap: Spacing.sm }}>
                   {data!.avoid_stocks.map((s) => (
                     <StockRow key={s.symbol} stock={s} />

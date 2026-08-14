@@ -107,7 +107,7 @@ export default function ScreenerScreen() {
 
       {isLoading ? (
         <View style={{ marginTop: Spacing.lg }}>
-          <SkeletonScreen rows={6} stats={2} />
+          <SkeletonScreen stats={2} usedAbove={300} />
         </View>
       ) : error ? (
         <ErrorState message={(error as Error).message} onRetry={refetch} />
@@ -124,9 +124,9 @@ export default function ScreenerScreen() {
             </StatRow>
           </View>
 
-          <SectionHeader title="Results" />
+          <SectionHeader title="Results" icon="list" />
           {rows.length === 0 ? (
-            <EmptyState title="Nothing matches" hint="Loosen a filter — the bar may be too high for this month." />
+            <EmptyState emoji="🎚️" title="Nothing matches" hint="Loosen a filter — the bar may be too high for this month." />
           ) : (
             <View style={{ gap: Spacing.sm }}>
               {rows.map((s, i) => (

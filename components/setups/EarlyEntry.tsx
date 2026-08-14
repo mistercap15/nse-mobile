@@ -50,7 +50,7 @@ function PickCard({ p, levels }: { p: EarlyEntryPick; levels?: Levels | null }) 
   const nearest = p.support?.nearest;
 
   return (
-    <Card style={{ padding: Spacing.md }}>
+    <Card stripe={tint} style={{ padding: Spacing.md, paddingLeft: Spacing.md + 4 }}>
       <Pressable onPress={() => setOpen((o) => !o)}>
         <View style={styles.head}>
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -217,13 +217,14 @@ export function EarlyEntryPanel() {
 
       {isLoading ? (
         <View style={{ marginTop: Spacing.lg }}>
-          <SkeletonScreen rows={4} stats={3} />
+          <SkeletonScreen stats={3} usedAbove={230} />
         </View>
       ) : error ? (
         <ErrorState message={(error as Error).message} onRetry={refetch} />
       ) : data ? (
         data.message || !data.results?.length ? (
           <EmptyState
+            emoji="🌾"
             title="No candidates"
             hint={data.message || "Nothing cleared the 75% win-rate / 5-year bar for next month."}
           />
@@ -257,6 +258,7 @@ export function EarlyEntryPanel() {
         )
       ) : (
         <EmptyState
+          emoji="🔭"
           title="Not scanned yet"
           hint="Tap Scan next month to check next month's picks against live price and support."
         />

@@ -44,7 +44,7 @@ function SwingRow({ s }: { s: SwingLowStock }) {
   const bouncePct = s.bounceRate != null ? s.bounceRate * 100 : null;
 
   return (
-    <Card style={{ padding: Spacing.md }}>
+    <Card stripe={tint} style={{ padding: Spacing.md, paddingLeft: Spacing.md + 4 }}>
       <Pressable onPress={() => setOpen((o) => !o)}>
         <View style={styles.head}>
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -220,7 +220,7 @@ export function SwingLowPanel() {
           <Text style={{ color: c.dim, fontSize: 11, marginBottom: Spacing.sm }}>
             Reading ~3 years of candles across the universe — this can take a minute.
           </Text>
-          <SkeletonScreen rows={5} stats={3} />
+          <SkeletonScreen stats={3} usedAbove={260} />
         </View>
       ) : error ? (
         <ErrorState message={(error as Error).message} onRetry={refetch} />
@@ -297,10 +297,15 @@ export function SwingLowPanel() {
             </View>
           </View>
 
-          <SectionHeader title={`${rows.length} setup${rows.length === 1 ? "" : "s"}`} />
+          <SectionHeader
+            icon="pulse"
+            tint={c.green}
+            title={`${rows.length} setup${rows.length === 1 ? "" : "s"}`}
+          />
 
           {rows.length === 0 ? (
             <EmptyState
+              emoji="🎚️"
               title="Nothing matches"
               hint="Loosen the filters, or check the other bucket."
             />
@@ -314,6 +319,7 @@ export function SwingLowPanel() {
         </>
       ) : (
         <EmptyState
+          emoji="🛰️"
           title="Not scanned yet"
           hint="Tap Scan universe to look for stocks sitting on a proven support floor."
         />

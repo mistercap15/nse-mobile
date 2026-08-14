@@ -56,7 +56,7 @@ export default function ResearchScreen() {
         <View style={{ height: Spacing.sm }} />
         <StockSearch onSelect={(symbol) => router.push(`/stock/${symbol}` as never)} />
 
-        <SectionHeader title="Tools" />
+        <SectionHeader title="Tools" icon="construct" />
         <View style={{ gap: Spacing.sm }}>
           {LINKS.map((l) => (
             <Pressable key={l.href} onPress={() => router.push(l.href as never)}>

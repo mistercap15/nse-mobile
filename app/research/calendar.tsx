@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useQueries } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { Card, EmptyState, Label, SectionHeader, SkeletonCard } from "@/components/ui";
+import { Card, EmptyState, Label, SectionHeader, SkeletonCard, useFillCount } from "@/components/ui";
 import { request } from "@/lib/client";
 import { queryKeys } from "@/lib/queries";
 import { MONTH_FULL, currentMonthIST, pct } from "@/lib/format";
@@ -21,6 +21,8 @@ export default function CalendarScreen() {
   const c = useColors();
   const router = useRouter();
   const now = currentMonthIST();
+  // Fill the viewport rather than stopping after a fixed few.
+  const skeletonCards = useFillCount(100, 120);
 
   const results = useQueries({
     queries: Array.from({ length: 12 }, (_, i) => ({
@@ -50,13 +52,13 @@ export default function CalendarScreen() {
       {loading && !anyData ? (
         <View style={{ marginTop: Spacing.lg }}>
           <View style={{ gap: Spacing.sm }}>
-            {Array.from({ length: 5 }, (_, i) => (
+            {Array.from({ length: skeletonCards }, (_, i) => (
               <SkeletonCard key={i} height={54} />
             ))}
           </View>
         </View>
       ) : !anyData ? (
-        <EmptyState title="No calendar data" hint="The rankings service returned nothing." />
+        <EmptyState emoji="🗓️" title="No calendar data" hint="The rankings service returned nothing." />
       ) : (
         <View style={{ marginTop: Spacing.md, gap: Spacing.sm }}>
           {results.map((r, i) => {
@@ -140,7 +142,7 @@ export default function CalendarScreen() {
         </View>
       )}
 
-      <SectionHeader title="Reading this" />
+      <SectionHeader title="Reading this" icon="help-circle" />
       <Text style={{ color: c.dim, fontSize: 11, lineHeight: 16 }}>
         Each pill shows the month&apos;s win rate and median return. These are historical
         frequencies over completed months, not forecasts — a 90% win rate on six years is a much

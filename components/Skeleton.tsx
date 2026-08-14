@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { AccessibilityInfo, StyleSheet, View, type DimensionValue, type ViewStyle } from "react-native";
+import {
+  AccessibilityInfo,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+  type DimensionValue,
+  type ViewStyle,
+} from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -8,22 +15,25 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-import { Radius, Spacing, useColors, useIsDark } from "@/lib/theme";
+import { Radius, Spacing, TAB_BAR_CLEARANCE, hairline, useColors, useIsDark } from "@/lib/theme";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Loading placeholders with a shimmer sweep.
 //
-// The shapes deliberately mirror the real content — a row skeleton is laid out
-// like a StockRow, a stat skeleton like a StatCard — so the screen doesn't
-// visibly re-flow the moment data lands. Generic grey bars would be less work
-// but the jump between placeholder and content is what reads as cheap.
-//
-// The sweep width comes from onLayout rather than a guess, so it stays correct
-// across screen sizes, and it's skipped entirely when the OS asks for reduced
-// motion.
+// Two rules:
+//   1. The shape mirrors the real content — a row skeleton is laid out like a
+//      StockRow, a chart skeleton like a chart card — so nothing jumps when data
+//      lands.
+//   2. It FILLS the screen. A fixed handful of rows left the lower half blank,
+//      which reads as a broken screen rather than a loading one, so the row
+//      count is derived from the viewport and whatever sits above it.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const DURATION = 1150;
+const ROW_H = 62;
+const ROW_GAP = Spacing.sm;
+const STATROW_H = 86;
+const CHART_H = 196;
 
 function useReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
@@ -37,6 +47,25 @@ function useReducedMotion(): boolean {
     };
   }, []);
   return reduced;
+}
+
+/**
+ * How many rows it takes to reach the bottom of the screen, given what's
+ * already above them. Clamped so a short screen still shows a few and a tablet
+ * doesn't render dozens.
+ */
+function useFillRows(usedAbove: number): number {
+  return useFillCount(ROW_H + ROW_GAP, usedAbove);
+}
+
+/**
+ * Same idea for any repeated block — calendar months, strategy cards — so those
+ * screens don't stop halfway down either.
+ */
+export function useFillCount(itemHeight: number, usedAbove = 0, max = 12): number {
+  const { height } = useWindowDimensions();
+  const available = height - usedAbove - TAB_BAR_CLEARANCE;
+  return Math.max(3, Math.min(max, Math.floor(available / itemHeight)));
 }
 
 export function Skeleton({
@@ -94,11 +123,27 @@ export function Skeleton({
   );
 }
 
-/** Placeholder shaped like a StockRow: rank, symbol + sector, two stats. */
+function Shell({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
+  const c = useColors();
+  const isDark = useIsDark();
+  return (
+    <View
+      style={[
+        { backgroundColor: c.card, borderColor: hairline(c, isDark), borderWidth: 1, borderRadius: Radius.lg },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+/** Placeholder shaped like a StockRow: stripe, symbol + sector, two stats. */
 export function SkeletonRow() {
   const c = useColors();
   return (
-    <View style={[styles.row, { backgroundColor: c.card, borderColor: c.border }]}>
+    <Shell style={styles.row}>
+      <View style={[styles.stripe, { backgroundColor: c.surface }]} />
       <Skeleton width={14} height={10} />
       <View style={{ flex: 1, gap: 6 }}>
         <Skeleton width="45%" height={13} />
@@ -112,13 +157,13 @@ export function SkeletonRow() {
         <Skeleton width={44} height={13} />
         <Skeleton width={30} height={8} />
       </View>
-    </View>
+    </Shell>
   );
 }
 
 export function SkeletonList({ rows = 6 }: { rows?: number }) {
   return (
-    <View style={{ gap: Spacing.sm }}>
+    <View style={{ gap: ROW_GAP }}>
       {Array.from({ length: rows }, (_, i) => (
         <SkeletonRow key={i} />
       ))}
@@ -128,18 +173,14 @@ export function SkeletonList({ rows = 6 }: { rows?: number }) {
 
 /** Placeholder shaped like a row of StatCards. */
 export function SkeletonStatRow({ count = 3 }: { count?: number }) {
-  const c = useColors();
   return (
     <View style={{ flexDirection: "row", gap: Spacing.sm }}>
       {Array.from({ length: count }, (_, i) => (
-        <View
-          key={i}
-          style={[styles.stat, { backgroundColor: c.card, borderColor: c.border }]}
-        >
+        <Shell key={i} style={{ flex: 1, padding: Spacing.md }}>
           <Skeleton width="65%" height={8} />
           <Skeleton width="50%" height={18} style={{ marginTop: 8 }} />
           <Skeleton width="80%" height={8} style={{ marginTop: 6 }} />
-        </View>
+        </Shell>
       ))}
     </View>
   );
@@ -147,26 +188,96 @@ export function SkeletonStatRow({ count = 3 }: { count?: number }) {
 
 /** A generic card-sized block, for charts and panels. */
 export function SkeletonCard({ height = 150 }: { height?: number }) {
-  const c = useColors();
   return (
-    <View
-      style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}
-    >
+    <Shell style={{ padding: Spacing.md }}>
       <Skeleton width="40%" height={10} />
       <Skeleton height={height} style={{ marginTop: Spacing.sm }} />
+    </Shell>
+  );
+}
+
+/** Chart card: caption line above a tall block. */
+export function SkeletonChart({ height = 150 }: { height?: number }) {
+  return (
+    <Shell style={{ padding: Spacing.md }}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+        <Skeleton width="35%" height={9} />
+        <Skeleton width="18%" height={9} />
+      </View>
+      <Skeleton height={height} style={{ marginTop: Spacing.md }} />
+    </Shell>
+  );
+}
+
+/** The Home banner. */
+export function SkeletonHero() {
+  return (
+    <Shell style={{ padding: Spacing.lg, borderRadius: Radius.xl }}>
+      <Skeleton width="30%" height={9} />
+      <Skeleton width="55%" height={28} style={{ marginTop: 10 }} />
+      <Skeleton width="80%" height={11} style={{ marginTop: 9 }} />
+      <View style={{ flexDirection: "row", gap: Spacing.md, marginTop: Spacing.lg }}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={{ flex: 1, gap: 5 }}>
+            <Skeleton width="60%" height={17} />
+            <Skeleton width="85%" height={8} />
+          </View>
+        ))}
+      </View>
+    </Shell>
+  );
+}
+
+/** Wrapping pills, for the calendar and sector-rotation cards. */
+export function SkeletonPills({ count = 5 }: { count?: number }) {
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+      {Array.from({ length: count }, (_, i) => (
+        <Skeleton key={i} width={72} height={30} radius={Radius.sm} />
+      ))}
     </View>
   );
 }
 
 /**
- * The default full-screen loading state: a stat row over a list, which is the
- * shape almost every screen in the app resolves to.
+ * The default full-screen loading state. Composes the pieces a screen actually
+ * has, then fills whatever height is left with rows so the lower half is never
+ * blank.
+ *
+ * `rows` can be pinned; leave it out to auto-fill.
  */
-export function SkeletonScreen({ rows = 6, stats = 3 }: { rows?: number; stats?: number }) {
+export function SkeletonScreen({
+  rows,
+  stats = 3,
+  hero = false,
+  charts = 0,
+  usedAbove = 0,
+}: {
+  rows?: number;
+  stats?: number;
+  hero?: boolean;
+  charts?: number;
+  /** Height of controls already rendered above this skeleton. */
+  usedAbove?: number;
+}) {
+  const consumed =
+    usedAbove +
+    (hero ? 210 : 0) +
+    (stats ? STATROW_H + Spacing.md : 0) +
+    charts * (CHART_H + Spacing.md) +
+    120; // header + section label + breathing room
+
+  const auto = useFillRows(consumed);
+  const count = rows ?? auto;
+
   return (
     <View style={{ gap: Spacing.md }}>
-      <SkeletonStatRow count={stats} />
-      <SkeletonList rows={rows} />
+      {hero ? <SkeletonHero /> : null}
+      {stats ? <SkeletonStatRow count={stats} /> : null}
+      {Array.from({ length: charts }, (_, i) => (
+        <SkeletonChart key={i} />
+      ))}
+      {count > 0 ? <SkeletonList rows={count} /> : null}
     </View>
   );
 }
@@ -175,12 +286,11 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    paddingVertical: 13,
-    paddingHorizontal: Spacing.md,
+    paddingVertical: 12,
+    paddingLeft: Spacing.md + 4,
+    paddingRight: Spacing.md,
     gap: Spacing.sm,
+    overflow: "hidden",
   },
-  stat: { flex: 1, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md },
-  card: { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md },
+  stripe: { position: "absolute", left: 0, top: 0, bottom: 0, width: 3.5 },
 });

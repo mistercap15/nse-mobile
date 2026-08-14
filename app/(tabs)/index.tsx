@@ -5,16 +5,9 @@ import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { ConnectionBanner } from "@/components/ConnectionBanner";
 import { RegimeBanner } from "@/components/Banners";
+import { Hero } from "@/components/Hero";
 import { StockRow } from "@/components/StockRow";
-import {
-  Card,
-  ErrorState,
-  Label,
-  SectionHeader,
-  SkeletonScreen,
-  StatCard,
-  StatRow,
-} from "@/components/ui";
+import { Card, ErrorState, SectionHeader, SkeletonScreen } from "@/components/ui";
 import { useRankings, useSession } from "@/lib/queries";
 import { useAppStore } from "@/lib/store";
 import { MONTH_FULL, currentMonthIST, num, pct, untilExpiry } from "@/lib/format";
@@ -61,48 +54,45 @@ export default function HomeScreen() {
       >
         <ConnectionBanner />
 
-        <Label>Current month</Label>
-        <Text style={{ color: c.text, fontSize: 30, fontWeight: "800", marginTop: 6 }}>
-          {MONTH_FULL[month - 1]}
-          <Text style={{ color: c.accent }}>.</Text>
-        </Text>
-        <Text style={{ color: c.dim, fontSize: 12, marginTop: 4 }}>
-          {data?.calendar?.expiry
-            ? `F&O expiry in ${data.calendar.expiry.daysAway} days — ${data.calendar.expiry.date}`
-            : "Seasonal edge across the F&O universe"}
-        </Text>
+        <Hero
+          eyebrow="Current month"
+          title={MONTH_FULL[month - 1]}
+          accentWord={data?.regime?.label}
+          tone={data?.regime ? (data.regime.riskOn ? c.green : c.red) : c.accent}
+          subtitle={
+            data?.calendar?.expiry
+              ? `F&O expiry in ${data.calendar.expiry.daysAway} days · ${data.calendar.expiry.date}`
+              : "Seasonal edge across the F&O universe"
+          }
+          stats={
+            top.length
+              ? [
+                  { label: "Candidates", value: num(top.length) },
+                  {
+                    label: "Avg win rate",
+                    value: avgWR != null ? `${avgWR.toFixed(0)}%` : "—",
+                    color: c.green,
+                  },
+                  { label: "Significant", value: `${significant}/${top.length}`, color: c.accent },
+                ]
+              : undefined
+          }
+        />
 
         {isLoading ? (
           <View style={{ marginTop: Spacing.lg }}>
-            <SkeletonScreen rows={5} stats={3} />
+            <SkeletonScreen hero stats={0} usedAbove={90} />
           </View>
         ) : error ? (
           <ErrorState message={(error as Error).message} onRetry={refetch} />
         ) : (
           <>
             <View style={{ marginTop: Spacing.md }}>
-              <StatRow>
-                <StatCard label="Candidates" value={num(top.length)} sub="ranked longs" />
-                <StatCard
-                  label="Avg win rate"
-                  value={avgWR != null ? `${avgWR.toFixed(0)}%` : "—"}
-                  color={c.green}
-                />
-                <StatCard
-                  label="Significant"
-                  value={`${significant}/${top.length}`}
-                  sub="p<0.05"
-                  color={c.accent}
-                />
-              </StatRow>
-            </View>
-
-            <View style={{ marginTop: Spacing.md }}>
               <RegimeBanner regime={data?.regime} />
             </View>
 
             {/* Quick links */}
-            <SectionHeader title="Jump to" />
+            <SectionHeader title="Jump to" icon="apps" />
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: Spacing.sm }}>
               {QUICK_LINKS.map((l) => (
                 <Pressable
@@ -134,6 +124,7 @@ export default function HomeScreen() {
             </View>
 
             <SectionHeader
+              icon="trophy"
               title={`Top ${MONTH_FULL[month - 1]} names`}
               right={
                 <Pressable onPress={() => router.push("/rankings" as never)}>
@@ -149,7 +140,7 @@ export default function HomeScreen() {
 
             {data?.avoid_stocks?.length ? (
               <>
-                <SectionHeader title="Worth avoiding" />
+                <SectionHeader title="Worth avoiding" icon="warning" tint={c.red} />
                 <Card style={{ padding: Spacing.md }}>
                   {data.avoid_stocks.slice(0, 4).map((s) => (
                     <Pressable
@@ -175,7 +166,7 @@ export default function HomeScreen() {
 
             {recent.length ? (
               <>
-                <SectionHeader title="Recently viewed" />
+                <SectionHeader title="Recently viewed" icon="time" />
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
                   {recent.map((s) => (
                     <Pressable

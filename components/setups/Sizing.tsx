@@ -22,8 +22,8 @@ import { Radius, Spacing, gradeColor, useColors } from "@/lib/theme";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Position sizing. Conviction-graded lots, hard risk caps, then rationed against
-// real capital. The scoring is ported in lib/sizing.ts; this screen is the UI
-// over it plus the entry/target/stop levels from /api/sizing/entry-prices.
+// real capital. The scoring is ported in lib/sizing.ts; entry/stop/target come
+// from /api/levels, the same engine Swing Low and Early Entry read.
 //
 // Works with Upstox disconnected: grades, lots and capital math are all
 // snapshot-derived. Only the price columns fall back to "—".
@@ -74,7 +74,10 @@ function PositionCard({ p }: { p: SizedPosition }) {
   const lv = p.levels;
 
   return (
-    <Card style={{ padding: Spacing.md }}>
+    <Card
+      stripe={gradeColor(c, p.grade)}
+      style={{ padding: Spacing.md, paddingLeft: Spacing.md + 4 }}
+    >
       <Pressable onPress={() => setOpen((o) => !o)}>
         <View style={styles.posHead}>
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -256,13 +259,14 @@ export function SizingPanel() {
 
       {rankings.isLoading ? (
         <View style={{ marginTop: Spacing.lg }}>
-          <SkeletonScreen rows={5} stats={3} />
+          <SkeletonScreen stats={3} usedAbove={330} />
         </View>
       ) : rankings.error ? (
         <ErrorState message={(rankings.error as Error).message} onRetry={rankings.refetch} />
       ) : (
         <>
           <SectionHeader
+            icon="briefcase"
             title={`Sized positions (${model.sized.length})`}
             right={
               entries.isLoading ? (
@@ -275,6 +279,7 @@ export function SizingPanel() {
 
           {model.sized.length === 0 ? (
             <EmptyState
+              emoji="💤"
               title="Nothing sized"
               hint="No stock cleared the conviction bar, or the lot budget is zero. Check your capital inputs."
             />
@@ -288,7 +293,7 @@ export function SizingPanel() {
 
           {model.reserved.length ? (
             <>
-              <SectionHeader title={`Reserve list (${model.reserved.length})`} />
+              <SectionHeader title={`Reserve list (${model.reserved.length})`} icon="bookmark" tint={c.amber} />
               <Text style={{ color: c.dim, fontSize: 11, marginBottom: Spacing.sm, lineHeight: 16 }}>
                 Qualified on conviction but out of capital — the next names in if something frees up.
               </Text>
@@ -314,7 +319,7 @@ export function SizingPanel() {
 
           {model.belowBar.length ? (
             <>
-              <SectionHeader title={`Below the bar (${model.belowBar.length})`} />
+              <SectionHeader title={`Below the bar (${model.belowBar.length})`} icon="remove-circle" tint={c.dim} />
               <View style={{ gap: Spacing.sm }}>
                 {model.belowBar.map((p) => (
                   <Card key={p.symbol} style={{ padding: Spacing.md }}>

@@ -1,4 +1,4 @@
-import { useColorScheme } from "react-native";
+import { useColorScheme, type TextStyle } from "react-native";
 import { useAppStore } from "./store";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,6 +78,68 @@ export function useColors(): AppColors {
 export const Spacing = { xs: 4, sm: 8, md: 14, lg: 20, xl: 28, xxl: 40 };
 
 export const Radius = { sm: 8, md: 12, lg: 18, xl: 24, xxl: 32, full: 999 };
+
+// ── Type scale ──────────────────────────────────────────────────────────────
+// A fixed ramp rather than ad-hoc sizes per screen. Numbers get the tabular
+// treatment so columns of figures line up instead of shimmering as they change.
+export const Type = {
+  display: { fontSize: 30, fontWeight: "800", letterSpacing: -0.6 },
+  title:   { fontSize: 20, fontWeight: "800", letterSpacing: -0.3 },
+  heading: { fontSize: 15, fontWeight: "700", letterSpacing: -0.1 },
+  body:    { fontSize: 13, fontWeight: "500" },
+  small:   { fontSize: 11, fontWeight: "500" },
+  micro:   { fontSize: 9.5, fontWeight: "600", letterSpacing: 0.5 },
+  /** Figures: same width per glyph so tables don't jitter on refresh. */
+  // Not `as const` — RN's TextStyle wants a mutable fontVariant array.
+  numeric: { fontVariant: ["tabular-nums"] } as TextStyle,
+};
+
+// ── Depth ───────────────────────────────────────────────────────────────────
+// Shadows are near-invisible on a near-black background, so dark mode leans on
+// a lighter border for separation and light mode leans on the shadow.
+export function elevation(isDark: boolean, level: 1 | 2 | 3 = 1, tint?: string) {
+  const spec = {
+    1: { radius: 8, y: 3, light: 0.07, dark: 0.26 },
+    2: { radius: 16, y: 7, light: 0.10, dark: 0.36 },
+    3: { radius: 28, y: 13, light: 0.14, dark: 0.46 },
+  }[level];
+  // A tinted shadow reads as a glow in the element's own colour rather than a
+  // grey drop — it's what makes an accented card feel lit instead of stacked.
+  const tinted = Boolean(tint) && isDark;
+  return {
+    shadowColor: tinted ? (tint as string) : "#000",
+    shadowOffset: { width: 0, height: spec.y },
+    shadowRadius: tinted ? spec.radius * 1.3 : spec.radius,
+    shadowOpacity: tinted ? spec.dark * 0.85 : isDark ? spec.dark : spec.light,
+    elevation: level * 3,
+  };
+}
+
+/** Hairline that reads as a highlight on dark, a border on light. */
+export function hairline(c: AppColors, isDark: boolean): string {
+  return isDark ? "rgba(255,255,255,0.06)" : c.border;
+}
+
+// ── Gradients ───────────────────────────────────────────────────────────────
+// Two-stop only. Anything busier competes with the data, which is the thing the
+// user is actually here to read.
+export function surfaceGradient(c: AppColors, isDark: boolean): [string, string] {
+  // A wider spread between the stops gives the card visible form rather than a
+  // barely-there wash.
+  return isDark ? ["#16223A", "#0D1524"] : ["#FFFFFF", "#F1F1EA"];
+}
+
+export function tintGradient(hex: string, isDark: boolean): [string, string] {
+  const a = isDark ? [0.30, 0.07] : [0.18, 0.04];
+  const rgb = hexToRgb(hex);
+  return [`rgba(${rgb},${a[0]})`, `rgba(${rgb},${a[1]})`];
+}
+
+function hexToRgb(hex: string): string {
+  const h = hex.replace("#", "");
+  const n = parseInt(h.length === 3 ? h.split("").map((x) => x + x).join("") : h, 16);
+  return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+}
 
 // Floating tab bar sits over the content, so every scroll view needs to clear it.
 export const TAB_BAR_CLEARANCE = 110;

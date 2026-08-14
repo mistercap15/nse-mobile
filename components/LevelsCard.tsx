@@ -9,9 +9,10 @@ import type { Levels } from "@/lib/types";
 // Suggested entry / stop / target, straight from the backend's shared engine.
 //
 // Every number carries its basis, because the honest answer to "why this stop?"
-// is the level it hides behind. The two strategies deliberately differ on the
-// TARGET only — the stop rule is identical, which is the whole point of routing
-// all three screens through one engine.
+// is the level it hides behind. One engine produces all of them, so screens can
+// no longer disagree about a stock — though seasonal and reversion stops CAN
+// differ, since the month-long strategy skips levels too close to hold for a
+// month. The stripe colour tells you which strategy you are looking at.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STOP_BASIS_LABEL: Record<string, string> = {
@@ -55,10 +56,11 @@ export function LevelsCard({
   }
 
   const { entry, stop, target, riskReward } = levels;
+  const strategyTint = levels.strategy === "reversion" ? c.purple : c.accent;
   const rrColor = riskReward == null ? c.dim : riskReward >= 2 ? c.green : riskReward >= 1 ? c.amber : c.red;
 
   return (
-    <Card style={{ padding: Spacing.md }}>
+    <Card stripe={strategyTint} style={{ padding: Spacing.md, paddingLeft: Spacing.md + 4 }}>
       <View style={styles.head}>
         <Label>{title}</Label>
         <Badge
