@@ -31,7 +31,7 @@ import {
   useIsDark,
   type AppColors,
 } from "@/lib/theme";
-import type { PlaybookPick } from "@/lib/types";
+import type { PlaybookPick, RejectedPick } from "@/lib/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The Playbook — the month's few highest-conviction trades, ready to act on.
@@ -233,6 +233,108 @@ function PickCard({ pick, rank }: { pick: PlaybookPick; rank: number }) {
   );
 }
 
+/**
+ * A candidate that didn't make the cut, shown with the plan it would have been.
+ *
+ * Styled to read as "not this one" at a glance and never be mistaken for a
+ * trade: a dashed border rather than solid, no conviction colour, no elevation,
+ * flat surface, and the numbers in muted grey instead of the red/green the real
+ * cards use. The blocking reason is the only thing here with any colour.
+ */
+function RejectedCard({ pick }: { pick: RejectedPick }) {
+  const c = useColors();
+  const isDark = useIsDark();
+  const [open, setOpen] = useState(false);
+  const lv = pick.levels;
+
+  return (
+    <Pressable
+      onPress={() => setOpen((o) => !o)}
+      style={({ pressed }) => [
+        styles.rejected,
+        {
+          borderColor: c.border,
+          backgroundColor: isDark ? "transparent" : c.surface,
+          opacity: pressed ? 0.75 : 1,
+        },
+      ]}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm }}>
+        <View style={[styles.rejectedMark, { borderColor: c.border }]}>
+          <Ionicons name="close" size={12} color={c.dim} />
+        </View>
+
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={{ color: c.soft, fontSize: 13.5, fontWeight: "700" }}>{pick.symbol}</Text>
+          <Text numberOfLines={1} style={{ color: c.dim, fontSize: 9.5, marginTop: 2 }}>
+            {pick.sector ?? "—"}
+            {pick.lotSize ? ` · lot ${num(pick.lotSize)}` : ""}
+          </Text>
+        </View>
+
+        <View style={{ alignItems: "flex-end" }}>
+          <Text style={{ color: c.dim, fontSize: 14, fontWeight: "700", ...Type.numeric }}>
+            {pick.conviction.toFixed(0)}
+          </Text>
+          <Text style={{ color: c.dim, fontSize: 8, letterSpacing: 0.5 }}>SCORE</Text>
+        </View>
+      </View>
+
+      {/* The plan it would have been — same four numbers, all in grey. */}
+      {lv ? (
+        <View style={[styles.rejectedLevels, { borderTopColor: c.border }]}>
+          <MutedLevel label="Would enter" value={rupees(lv.entry.price)} />
+          <MutedLevel label="Stop" value={rupees(lv.stop.price)} sub={pct(-lv.stop.pct, 1, false)} />
+          <MutedLevel
+            label="Target"
+            value={lv.target ? rupees(lv.target.price) : DASH}
+            sub={lv.target ? pct(lv.target.pct) : undefined}
+          />
+          <MutedLevel
+            label="R:R"
+            value={lv.riskReward != null ? `${lv.riskReward.toFixed(1)}×` : DASH}
+          />
+        </View>
+      ) : null}
+
+      {/* The one thing that gets colour: why it was dropped. */}
+      <View style={{ flexDirection: "row", gap: 6, marginTop: Spacing.sm, alignItems: "flex-start" }}>
+        <Ionicons name="ban-outline" size={11} color={c.amber} style={{ marginTop: 1 }} />
+        <Text style={{ color: c.amber, fontSize: 10.5, flex: 1, lineHeight: 15 }}>
+          {pick.why.join(" · ")}
+        </Text>
+      </View>
+
+      {open && pick.components ? (
+        <View style={{ marginTop: Spacing.md }}>
+          <Label style={{ fontSize: 9 }}>Where it fell short</Label>
+          <View style={{ marginTop: Spacing.sm, opacity: 0.65 }}>
+            <ConvictionBars components={pick.components} />
+          </View>
+          {lv?.stop?.basis ? (
+            <Text style={{ color: c.dim, fontSize: 9.5, marginTop: Spacing.sm, lineHeight: 14 }}>
+              Stop would have sat {lv.stop.basis.replace(/_/g, " ").toLowerCase()}.
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+function MutedLevel({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  const c = useColors();
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={{ color: c.dim, fontSize: 8, letterSpacing: 0.4 }}>{label.toUpperCase()}</Text>
+      <Text style={{ color: c.soft, fontSize: 12, fontWeight: "700", marginTop: 2, ...Type.numeric }}>
+        {value}
+      </Text>
+      {sub ? <Text style={{ color: c.dim, fontSize: 8, marginTop: 1 }}>{sub}</Text> : null}
+    </View>
+  );
+}
+
 function Level({
   label,
   value,
@@ -403,19 +505,16 @@ export function PlaybookPanel() {
           {/* Why some names didn't make it — "where's X?" is a fair question */}
           {data.rejected?.length ? (
             <>
-              <SectionHeader icon="filter" tint={c.dim} title="Considered but rejected" />
-              <Card flat style={{ padding: Spacing.md }}>
+              <SectionHeader icon="close-circle" tint={c.dim} title="Considered but rejected" />
+              <Text style={{ color: c.dim, fontSize: 10.5, lineHeight: 15, marginBottom: Spacing.sm }}>
+                Scored, priced, then dropped at a gate. The plan each would have been is here so you
+                can judge the call rather than take it on trust — but these are not trades to take.
+              </Text>
+              <View style={{ gap: Spacing.sm }}>
                 {data.rejected.slice(0, 8).map((r) => (
-                  <View key={r.symbol} style={{ flexDirection: "row", gap: 8, paddingVertical: 4 }}>
-                    <Text style={{ color: c.soft, fontSize: 11, fontWeight: "700", width: 88 }}>
-                      {r.symbol}
-                    </Text>
-                    <Text style={{ color: c.dim, fontSize: 10, flex: 1, lineHeight: 15 }}>
-                      {r.why.join(" · ")}
-                    </Text>
-                  </View>
+                  <RejectedCard key={r.symbol} pick={r} />
                 ))}
-              </Card>
+              </View>
             </>
           ) : null}
 
@@ -478,4 +577,27 @@ const styles = StyleSheet.create({
   barValue: { fontSize: 10, width: 22, textAlign: "right", fontWeight: "700" },
   warn: { marginTop: Spacing.md, borderWidth: 1, borderRadius: Radius.sm, padding: Spacing.sm },
   shortRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 5 },
+  // Dashed and flat on purpose: it should never be mistaken for a pick.
+  rejected: {
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+  },
+  rejectedMark: {
+    width: 26,
+    height: 26,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rejectedLevels: {
+    flexDirection: "row",
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+  },
 });

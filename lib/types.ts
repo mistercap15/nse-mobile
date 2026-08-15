@@ -529,6 +529,21 @@ export interface PlaybookPick {
   affordable: boolean;
 }
 
+/**
+ * A candidate that scored but failed a gate. Carries the plan it WOULD have
+ * been, so the list is something you can disagree with rather than a verdict.
+ */
+export interface RejectedPick {
+  symbol: string;
+  sector: string | null;
+  conviction: number;
+  band: string | null;
+  components: ConvictionComponents | null;
+  lotSize: number | null;
+  levels: Levels | null;
+  why: string[];
+}
+
 export interface PlaybookCapital {
   capital: number;
   reserve: number;
@@ -552,7 +567,7 @@ export interface PlaybookResponse {
   generatedAt: string;
   connected: boolean;
   picks: PlaybookPick[];
-  rejected: { symbol: string; conviction: number; why: string[] }[];
+  rejected: RejectedPick[];
   considered?: number;
   shortlisted?: number;
   capital: PlaybookCapital | null;
