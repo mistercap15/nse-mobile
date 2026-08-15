@@ -278,6 +278,16 @@ export interface AnalysisResponse {
   lot_size: number;
   prices: PricePoint[];
   seasonality: MonthSeasonality[];
+  /**
+   * Promoter dealing and stake history, as context. Absent when the offline
+   * filings snapshot doesn't cover this symbol — which is common and means
+   * "unknown", never "clean".
+   */
+  promoter?: {
+    activity: PromoterActivity | null;
+    holding: { date: string; promoterPct: number }[];
+    asOf: string | null;
+  };
   error?: string;
 }
 
@@ -515,6 +525,10 @@ export interface PlaybookPick {
   support: { nearest: SupportZone | null; distancePct: number | null };
   context: PriceContext | null;
   reasons: string[];
+  /** Warnings from the qualifier layer. Present but empty for a clean pick. */
+  flags?: QualifierFlag[];
+  /** Shadow-mode promoter dealing — shown, never scored. */
+  promoter?: PromoterActivity | null;
 
   // Added by the capital allocator.
   lots: number;
@@ -542,6 +556,36 @@ export interface PlaybookPick {
  * A candidate that scored but failed a gate. Carries the plan it WOULD have
  * been, so the list is something you can disagree with rather than a verdict.
  */
+/**
+ * A disqualifying fact the conviction score can't see — illiquidity, promoter
+ * distress, a regulatory filing, an earnings date inside the hold.
+ *
+ * `warn` rides along on a pick that still passed; `reject` is folded into the
+ * rejection reasons and never appears here.
+ */
+export interface QualifierFlag {
+  level: "warn" | "reject";
+  code: string;
+  message: string;
+}
+
+/**
+ * Recent promoter dealing. DISPLAY ONLY — never feeds conviction or sizing,
+ * because NSE's insider archive can't be queried backwards consistently enough
+ * to backtest it.
+ */
+export interface PromoterActivity {
+  windowDays: number;
+  buys: number;
+  sells: number;
+  buyValue: number;
+  sellValue: number;
+  netValue: number;
+  pledged: number;
+  revoked: number;
+  shadow: true;
+}
+
 export interface RejectedPick {
   symbol: string;
   sector: string | null;
@@ -551,6 +595,7 @@ export interface RejectedPick {
   lotSize: number | null;
   levels: Levels | null;
   why: string[];
+  flags?: QualifierFlag[];
 }
 
 export interface PlaybookCapital {
@@ -590,6 +635,17 @@ export interface PlaybookResponse {
   cached?: boolean;
   note?: string;
   error?: string;
+  /** Freshness and hit-rate of the offline filings snapshot. */
+  filings?: {
+    generatedAt: string | null;
+    coverage: { symbols: number; withPit: number; withHolding: number; withAnnouncements: number } | null;
+    ageDays: number | null;
+    /** F&O expiry the hold is measured against. */
+    holdEndsOn: string;
+    /** How many candidates a qualifier rejected — a calibration check. */
+    gatedOut: number;
+    flagged: number;
+  };
   /** Present only when Upstox is down: seasonal ranking with no levels. */
   shortlist?: { symbol: string; sector: string; edge: number; winRate: number; medianReturn: number }[];
 }

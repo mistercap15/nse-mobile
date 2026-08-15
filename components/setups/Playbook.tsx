@@ -31,7 +31,7 @@ import {
   useIsDark,
   type AppColors,
 } from "@/lib/theme";
-import type { PlaybookPick, RejectedPick } from "@/lib/types";
+import type { PlaybookPick, PromoterActivity, QualifierFlag, RejectedPick } from "@/lib/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The Playbook — the month's few highest-conviction trades, ready to act on.
@@ -81,6 +81,81 @@ function ConvictionBars({ components }: { components: PlaybookPick["components"]
           <Text style={[styles.barValue, { color: c.soft }]}>{value.toFixed(0)}</Text>
         </View>
       ))}
+    </View>
+  );
+}
+
+const FLAG_ICONS: Record<string, React.ComponentProps<typeof Ionicons>["name"]> = {
+  earnings: "podium-outline",
+  earnings_estimated: "podium-outline",
+  dividend: "cash-outline",
+  fundraise: "trending-up-outline",
+  corporate_action: "git-branch-outline",
+  board_meeting: "people-outline",
+  stake_falling: "trending-down-outline",
+};
+
+/**
+ * Warnings from the qualifier layer — things the conviction score can't see.
+ *
+ * Amber rather than red on purpose: none of these blocks the trade. An earnings
+ * date inside the hold is a legitimate trade whose risk simply isn't the one
+ * the stop describes, and the card should say so instead of implying the stop
+ * covers it.
+ */
+function FlagChips({ flags }: { flags?: QualifierFlag[] }) {
+  const c = useColors();
+  const warnings = (flags ?? []).filter((f) => f.level === "warn");
+  if (!warnings.length) return null;
+
+  return (
+    <View style={{ gap: 5, marginTop: Spacing.sm }}>
+      {warnings.map((f, i) => (
+        <View
+          key={`${f.code}-${i}`}
+          style={[styles.flag, { backgroundColor: c.amberBg, borderColor: `${c.amber}44` }]}
+        >
+          <Ionicons name={FLAG_ICONS[f.code] ?? "alert-circle-outline"} size={11} color={c.amber} />
+          <Text style={{ color: c.amber, fontSize: 10, flex: 1, lineHeight: 14 }}>{f.message}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/**
+ * Recent promoter dealing. Shown, never scored.
+ *
+ * NSE's insider archive can't be queried backwards consistently — the same
+ * company returns hundreds of filings for one year and none for another — so
+ * there is no history to calibrate a weight against. It stays context until
+ * forward-collected snapshots build that history.
+ */
+function PromoterNote({ p }: { p?: PromoterActivity | null }) {
+  const c = useColors();
+  if (!p) return null;
+
+  const bullish = p.netValue > 0 || p.revoked > 0;
+  const tint = bullish ? c.green : p.netValue < 0 ? c.red : c.dim;
+  const parts: string[] = [];
+  if (p.buys) parts.push(`${p.buys} open-market ${p.buys === 1 ? "buy" : "buys"} (${rupeesCompact(p.buyValue)})`);
+  if (p.sells) parts.push(`${p.sells} ${p.sells === 1 ? "sale" : "sales"} (${rupeesCompact(p.sellValue)})`);
+  if (p.revoked) parts.push(`${p.revoked} pledge ${p.revoked === 1 ? "release" : "releases"}`);
+  if (p.pledged) parts.push(`${p.pledged} new ${p.pledged === 1 ? "pledge" : "pledges"}`);
+  if (!parts.length) return null;
+
+  return (
+    <View style={{ marginTop: Spacing.md }}>
+      <Label style={{ fontSize: 9.5 }}>Promoter activity</Label>
+      <View style={{ flexDirection: "row", gap: 7, marginTop: 6, alignItems: "flex-start" }}>
+        <Ionicons name="person-circle-outline" size={13} color={tint} style={{ marginTop: 1 }} />
+        <Text style={{ color: c.soft, fontSize: 11, flex: 1, lineHeight: 16 }}>
+          {parts.join(" · ")} in the last {p.windowDays} days.
+        </Text>
+      </View>
+      <Text style={{ color: c.dim, fontSize: 9.5, marginTop: 5, lineHeight: 13.5 }}>
+        Context only — this doesn&apos;t affect the conviction score or your lot size.
+      </Text>
     </View>
   );
 }
@@ -157,6 +232,8 @@ function PickCard({ pick, rank }: { pick: PlaybookPick; rank: number }) {
           </View>
         ) : null}
 
+        <FlagChips flags={pick.flags} />
+
         <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: Spacing.sm }}>
           <Text style={{ color: c.dim, fontSize: 10, fontWeight: "600" }}>
             {open ? "Hide" : `${pick.reasons.length} reasons · full plan`}
@@ -183,6 +260,8 @@ function PickCard({ pick, rank }: { pick: PlaybookPick; rank: number }) {
               <ConvictionBars components={pick.components} />
             </View>
           </View>
+
+          <PromoterNote p={pick.promoter} />
 
           <View style={{ marginTop: Spacing.md }}>
             <KV k="Stop sits under" v={lv ? lv.stop.basis.replace(/_/g, " ").toLowerCase() : DASH} />
@@ -580,6 +659,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   levels: { flexDirection: "row", gap: Spacing.xs, marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1 },
+  flag: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: Radius.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
   expanded: { borderTopWidth: 1, paddingHorizontal: Spacing.md, paddingBottom: Spacing.md, paddingTop: Spacing.md },
   barRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   barLabel: { fontSize: 9.5, width: 44, fontWeight: "600" },

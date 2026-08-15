@@ -17,9 +17,9 @@ import {
 import { ConnectionBanner } from "@/components/ConnectionBanner";
 import { LevelsCard } from "@/components/LevelsCard";
 import { useAnalysis, useCandles, useLevels, useQuotes } from "@/lib/queries";
-import { DASH, MONTHS, currentMonthIST, num, pct, rupees } from "@/lib/format";
+import { DASH, MONTHS, currentMonthIST, num, pct, rupees, rupeesCompact } from "@/lib/format";
 import { Spacing, deltaColor, signalColor, useColors, useIsDark } from "@/lib/theme";
-import type { MonthSeasonality } from "@/lib/types";
+import type { AnalysisResponse, MonthSeasonality } from "@/lib/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The single-stock deep dive, shared by the Analysis tab and the pushed stock
@@ -31,6 +31,69 @@ import type { MonthSeasonality } from "@/lib/types";
 
 type Range = "6M" | "1Y" | "3Y";
 const RANGE_DAYS: Record<Range, number> = { "6M": 190, "1Y": 380, "3Y": 1100 };
+
+/**
+ * Promoter dealing and stake trend — context, never a signal.
+ *
+ * This is the browsable home for the promoter data, and deliberately the only
+ * one: a screener listing "stocks promoters are buying" would imply you can
+ * find trades by scanning it, and the backtest says you can't. Beside a single
+ * stock it's useful background; as a screener it would be a promise the data
+ * can't keep.
+ */
+function PromoterCard({ promoter }: { promoter?: AnalysisResponse["promoter"] }) {
+  const c = useColors();
+  const a = promoter?.activity ?? null;
+  const holding = promoter?.holding ?? [];
+  if (!a && holding.length < 2) return null;
+
+  const latest = holding[0];
+  const oldest = holding[holding.length - 1];
+  const drift = latest && oldest ? latest.promoterPct - oldest.promoterPct : null;
+
+  const parts: string[] = [];
+  if (a?.buys) parts.push(`${a.buys} open-market ${a.buys === 1 ? "buy" : "buys"} (${rupeesCompact(a.buyValue)})`);
+  if (a?.sells) parts.push(`${a.sells} ${a.sells === 1 ? "sale" : "sales"} (${rupeesCompact(a.sellValue)})`);
+  if (a?.revoked) parts.push(`${a.revoked} pledge ${a.revoked === 1 ? "release" : "releases"}`);
+  if (a?.pledged) parts.push(`${a.pledged} new ${a.pledged === 1 ? "pledge" : "pledges"}`);
+
+  return (
+    <>
+      <SectionHeader icon="person-circle" title="Promoters" />
+      <Card style={{ padding: Spacing.md }}>
+        {latest ? (
+          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
+            <Text style={{ color: c.text, fontSize: 24, fontWeight: "800" }}>
+              {latest.promoterPct.toFixed(2)}%
+            </Text>
+            <Text style={{ color: c.dim, fontSize: 10, marginBottom: 5 }}>
+              holding as of {latest.date}
+            </Text>
+          </View>
+        ) : null}
+
+        {drift != null && holding.length >= 3 ? (
+          <Text style={{ color: c.soft, fontSize: 11, marginTop: 4, lineHeight: 16 }}>
+            {Math.abs(drift) < 0.1
+              ? `Unchanged across the last ${holding.length} quarters.`
+              : `${drift > 0 ? "Up" : "Down"} ${Math.abs(drift).toFixed(2)}pts over ${holding.length} quarters (from ${oldest.promoterPct.toFixed(2)}%).`}
+          </Text>
+        ) : null}
+
+        {parts.length ? (
+          <Text style={{ color: c.soft, fontSize: 11, marginTop: Spacing.sm, lineHeight: 16 }}>
+            {parts.join(" · ")} in the last {a?.windowDays} days.
+          </Text>
+        ) : null}
+
+        <Text style={{ color: c.dim, fontSize: 9.5, marginTop: Spacing.sm, lineHeight: 14 }}>
+          Background only. Stake direction was tested against four years of returns and didn&apos;t
+          predict them, so nothing here affects the suggested trade above.
+        </Text>
+      </Card>
+    </>
+  );
+}
 
 export function StockAnalysis({ symbol }: { symbol: string }) {
   const c = useColors();
@@ -109,6 +172,8 @@ export function StockAnalysis({ symbol }: { symbol: string }) {
       <View style={{ marginTop: Spacing.md }}>
         <LevelsCard levels={levels} title={`Suggested trade · ${MONTHS[thisMonth - 1]}`} />
       </View>
+
+      <PromoterCard promoter={analysis.data.promoter} />
 
       {/* Current-month seasonality up front — it's why you opened this screen. */}
       <View style={{ marginTop: Spacing.md }}>
