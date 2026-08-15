@@ -476,3 +476,89 @@ export interface StrategiesResponse {
   short_threshold: number;
   error?: string;
 }
+
+// ── Playbook (conviction) ───────────────────────────────────────────────────
+// The month's few highest-conviction trades, blended from the seasonal edge
+// (rankings), the structural setup (swing-low) and the timing checks
+// (early-entry). See nse-dashboard/app/lib/conviction.js for the scoring.
+
+export interface ConvictionComponents {
+  edge: number;
+  structure: number;
+  timing: number;
+}
+
+export interface PlaybookPick {
+  symbol: string;
+  sector: string | null;
+  lotSize: number | null;
+  conviction: number;
+  band: "HIGH" | "GOOD" | "FAIR" | "LOW" | string;
+  /** How many of the three screeners independently surfaced this name (1-3). */
+  sources: number;
+  components: ConvictionComponents;
+  levels: Levels | null;
+  seasonality: SeasonalStats | null;
+  swingLow: {
+    tier: string;
+    score: number;
+    floor: SwingFloor | null;
+    bounceRate: number | null;
+    bounceSamples: number;
+    rsi: number;
+    distToFloorPct: number | null;
+    inZone: boolean;
+    drawdownFromHighPct: number;
+  } | null;
+  inSwingLowScreener: boolean;
+  checklist: { result: string; passCount: number; totalChecks: number; summary: string };
+  support: { nearest: SupportZone | null; distancePct: number | null };
+  context: PriceContext | null;
+  reasons: string[];
+
+  // Added by the capital allocator.
+  lots: number;
+  wantedLots: number;
+  lotCost: number;
+  /** Face value of one contract — the exposure behind the margin. */
+  notionalPerLot: number;
+  notional: number;
+  capitalUsed: number;
+  riskAmount: number;
+  rewardAmount: number;
+  affordable: boolean;
+}
+
+export interface PlaybookCapital {
+  capital: number;
+  reserve: number;
+  avgLotCost?: number;
+  usable: number;
+  deployed: number;
+  /** Total contract face value across the plan. */
+  notional: number;
+  dryPowder: number;
+  deployedPct: number;
+  totalRisk: number;
+  totalReward: number;
+  /** Total risk as a share of the whole account — the number that matters. */
+  riskPctOfCapital: number;
+  unaffordable: string[];
+}
+
+export interface PlaybookResponse {
+  month: number;
+  monthName: string;
+  generatedAt: string;
+  connected: boolean;
+  picks: PlaybookPick[];
+  rejected: { symbol: string; conviction: number; why: string[] }[];
+  considered?: number;
+  shortlisted?: number;
+  capital: PlaybookCapital | null;
+  cached?: boolean;
+  note?: string;
+  error?: string;
+  /** Present only when Upstox is down: seasonal ranking with no levels. */
+  shortlist?: { symbol: string; sector: string; edge: number; winRate: number; medianReturn: number }[];
+}

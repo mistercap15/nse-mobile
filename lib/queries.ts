@@ -5,6 +5,7 @@ import type {
   AnalysisResponse,
   LevelsResponse,
   UniverseResponse,
+  PlaybookResponse,
   BacktestResponse,
   CandlesResponse,
   EarlyEntryResponse,
@@ -42,6 +43,8 @@ export const queryKeys = {
   quotes: (symbols: string[]) => ["quotes", symbols.join(",")] as const,
   earlyEntry: ["early-entry"] as const,
   universe: ["universe"] as const,
+  playbook: (month: number, capital: number, reserve: number, avgLotCost: number, top: number) =>
+    ["playbook", month, capital, reserve, avgLotCost, top] as const,
   levels: (symbols: string[], month: number | undefined, strategy: string, lots: number) =>
     ["levels", symbols.join(","), month ?? null, strategy, lots] as const,
   backtest: (params: Record<string, unknown>) => ["backtest", params] as const,
@@ -234,6 +237,31 @@ export function useLevels(
     enabled: enabled && symbols.length > 0,
     retry: false,
     staleTime: 10 * MINUTE,
+  });
+}
+
+/**
+ * The month's highest-conviction trades. Heavy on the first call of the day
+ * (candles for the shortlist) and cached server-side until the next close.
+ */
+export function usePlaybook(
+  month: number,
+  capital: number,
+  reserve: number,
+  avgLotCost: number,
+  top = 6,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: queryKeys.playbook(month, capital, reserve, avgLotCost, top),
+    queryFn: () =>
+      request<PlaybookResponse>("/api/playbook", {
+        params: { month, capital, reserve, avgLotCost, top },
+        timeoutMs: 240_000,
+      }),
+    enabled,
+    retry: false,
+    staleTime: 15 * MINUTE,
   });
 }
 

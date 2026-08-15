@@ -24,7 +24,7 @@ const QUICK_LINKS: {
   icon: React.ComponentProps<typeof Ionicons>["name"];
 }[] = [
   { href: "/rankings", label: "Rankings", icon: "podium-outline" },
-  { href: "/setups", label: "Setups", icon: "flash-outline" },
+  { href: "/setups", label: "Playbook", icon: "flash-outline" },
   { href: "/research/screener", label: "Screener", icon: "funnel-outline" },
   { href: "/research/backtest", label: "Backtest", icon: "trending-up-outline" },
 ];
