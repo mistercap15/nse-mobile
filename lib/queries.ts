@@ -43,8 +43,8 @@ export const queryKeys = {
   quotes: (symbols: string[]) => ["quotes", symbols.join(",")] as const,
   earlyEntry: ["early-entry"] as const,
   universe: ["universe"] as const,
-  playbook: (month: number, capital: number, reserve: number, avgLotCost: number, top: number) =>
-    ["playbook", month, capital, reserve, avgLotCost, top] as const,
+  playbook: (month: number, params: Record<string, number>, top: number) =>
+    ["playbook", month, params, top] as const,
   levels: (symbols: string[], month: number | undefined, strategy: string, lots: number) =>
     ["levels", symbols.join(","), month ?? null, strategy, lots] as const,
   backtest: (params: Record<string, unknown>) => ["backtest", params] as const,
@@ -246,17 +246,21 @@ export function useLevels(
  */
 export function usePlaybook(
   month: number,
-  capital: number,
-  reserve: number,
-  avgLotCost: number,
+  money: {
+    capital: number;
+    reserve: number;
+    avgLotCost: number;
+    riskPerTradePct: number;
+    maxPortfolioRiskPct: number;
+  },
   top = 6,
   enabled = true,
 ) {
   return useQuery({
-    queryKey: queryKeys.playbook(month, capital, reserve, avgLotCost, top),
+    queryKey: queryKeys.playbook(month, money, top),
     queryFn: () =>
       request<PlaybookResponse>("/api/playbook", {
-        params: { month, capital, reserve, avgLotCost, top },
+        params: { month, ...money, top },
         timeoutMs: 240_000,
       }),
     enabled,

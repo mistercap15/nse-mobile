@@ -191,7 +191,13 @@ function PickCard({ pick, rank }: { pick: PlaybookPick; rank: number }) {
               v={lv?.riskReward != null ? `${lv.riskReward.toFixed(1)}×` : DASH}
               color={lv?.riskReward != null && lv.riskReward >= 2 ? c.green : c.amber}
             />
-            <KV k="Risk at stop" v={pick.lots ? rupees(pick.riskAmount) : DASH} color={c.red} />
+            <KV
+              k="Risk per lot"
+              v={`${rupees(pick.riskPerLot)} · ${pick.riskPerLotPct}% of capital`}
+              color={c.red}
+            />
+            <KV k="Risk at this size" v={pick.lots ? rupees(pick.riskAmount) : DASH} color={c.red} />
+            <KV k="Size limited by" v={pick.cappedBy} />
             <KV k="Reward at target" v={pick.lots ? rupees(pick.rewardAmount) : DASH} color={c.green} />
             <KV
               k="Contract notional"
@@ -214,11 +220,19 @@ function PickCard({ pick, rank }: { pick: PlaybookPick; rank: number }) {
 
           {pick.lots === 0 ? (
             <View style={[styles.warn, { borderColor: c.amber, backgroundColor: c.amberBg }]}>
-              <Text style={{ color: c.amber, fontSize: 10, lineHeight: 15 }}>
-                Capital ran out before this one. One lot needs {rupees(pick.lotCost)} — raise your
-                capital in Settings or trade fewer names.
+              <Text style={{ color: c.amber, fontSize: 10.5, fontWeight: "700" }}>
+                {pick.tooRisky ? "Too big for your account" : "No capital left"}
+              </Text>
+              <Text style={{ color: c.soft, fontSize: 10, lineHeight: 15, marginTop: 4 }}>
+                {pick.tooRisky
+                  ? `One lot risks ${rupees(pick.riskPerLot)} — ${pick.riskPerLotPct}% of your capital, above your ${pick.levels ? "" : ""}limit. Sizing this properly needs about ${rupeesCompact(pick.capitalNeededForOneLot ?? 0)}.`
+                  : `Capped by ${pick.cappedBy}. One lot needs ${rupees(pick.lotCost)} of margin.`}
               </Text>
             </View>
+          ) : pick.lots < pick.wantedLots ? (
+            <Text style={{ color: c.dim, fontSize: 10, marginTop: Spacing.md, lineHeight: 15 }}>
+              Conviction earned {pick.wantedLots} lots; {pick.cappedBy} allowed {pick.lots}.
+            </Text>
           ) : null}
 
           <Button
@@ -370,14 +384,7 @@ export function PlaybookPanel() {
   const upstox = useUpstoxStatus();
   const [started, setStarted] = useState(false);
 
-  const { data, isLoading, error, refetch } = usePlaybook(
-    month,
-    sizing.capital,
-    sizing.reserve,
-    sizing.avgLotCost,
-    6,
-    started,
-  );
+  const { data, isLoading, error, refetch } = usePlaybook(month, sizing, 6, started);
 
   const cap = data?.capital;
   const picks = data?.picks ?? [];
@@ -395,9 +402,9 @@ export function PlaybookPanel() {
         stats={
           cap
             ? [
-                { label: "Deployed", value: rupeesCompact(cap.deployed), color: c.accent },
                 { label: "At risk", value: rupeesCompact(cap.totalRisk), color: c.red },
                 { label: "Of capital", value: `${cap.riskPctOfCapital}%`, color: c.amber },
+                { label: "Budget used", value: `${cap.riskBudgetUsedPct}%`, color: c.accent },
               ]
             : undefined
         }
@@ -437,33 +444,36 @@ export function PlaybookPanel() {
 
           {cap ? (
             <View style={{ marginTop: Spacing.md }}>
-              <StatRow>
-                <StatCard label="Usable" value={rupeesCompact(cap.usable)} sub="capital − reserve" />
-                <StatCard
-                  label="Deployed"
-                  value={`${cap.deployedPct}%`}
-                  sub={rupeesCompact(cap.deployed)}
-                  color={c.accent}
-                />
-                <StatCard
-                  label="Exposure"
-                  value={rupeesCompact(cap.notional)}
-                  sub="contract notional"
-                  color={c.purple}
-                />
-              </StatRow>
-              <View style={{ height: Spacing.sm }} />
+              {/* Risk leads. "% deployed" is a leveraged number — ₹3L of margin
+                  can carry ₹37L of contract — so it reads as spare capacity
+                  when the account is already fully committed on risk. */}
               <StatRow>
                 <StatCard
-                  label="Risk if all stop out"
+                  label="Risk if all stop"
                   value={rupees(cap.totalRisk)}
                   sub={`${cap.riskPctOfCapital}% of capital`}
                   color={c.red}
                 />
                 <StatCard
+                  label="Risk budget"
+                  value={`${cap.riskBudgetUsedPct}%`}
+                  sub={`${rupeesCompact(cap.riskBudgetLeft)} left of ${rupeesCompact(cap.portfolioBudget)}`}
+                  color={cap.riskBudgetUsedPct >= 90 ? c.amber : c.accent}
+                />
+                <StatCard
                   label="Reward if all hit"
                   value={rupees(cap.totalReward)}
                   color={c.green}
+                />
+              </StatRow>
+              <View style={{ height: Spacing.sm }} />
+              <StatRow>
+                <StatCard label="Margin used" value={rupeesCompact(cap.deployed)} sub={`of ${rupeesCompact(cap.usable)} usable`} />
+                <StatCard
+                  label="Exposure"
+                  value={rupeesCompact(cap.notional)}
+                  sub={cap.deployed ? `${(cap.notional / cap.deployed).toFixed(1)}× leverage` : "contract notional"}
+                  color={c.purple}
                 />
               </StatRow>
             </View>

@@ -69,6 +69,63 @@ function MoneyInput({
   );
 }
 
+function PctInput({
+  label,
+  hint,
+  icon,
+  value,
+  amount,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  value: number;
+  amount: number;
+  onChange: (n: number) => void;
+}) {
+  const c = useColors();
+  const isDark = useIsDark();
+  const [text, setText] = useState(String(value));
+
+  const commit = () => {
+    const n = Number(text.replace(/[^0-9.]/g, ""));
+    // Clamped: 0 would size everything to zero, and past 50% it stops being a
+    // risk limit at all.
+    const next = Number.isFinite(n) && n > 0 ? Math.min(50, n) : value;
+    onChange(next);
+    setText(String(next));
+  };
+
+  return (
+    <Card style={{ padding: Spacing.md }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <View style={[styles.icon, { backgroundColor: c.redBg }]}>
+          <Ionicons name={icon} size={15} color={c.red} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Label style={{ fontSize: 10 }}>{label}</Label>
+          <Text style={{ color: c.dim, fontSize: 10, marginTop: 2, lineHeight: 14 }}>{hint}</Text>
+        </View>
+      </View>
+      <View style={[styles.inputRow, { borderColor: hairline(c, isDark), backgroundColor: c.surface }]}>
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          onBlur={commit}
+          onSubmitEditing={commit}
+          keyboardType="decimal-pad"
+          returnKeyType="done"
+          selectTextOnFocus
+          style={{ flex: 1, color: c.text, fontSize: 18, fontWeight: "800", paddingVertical: 8 }}
+        />
+        <Text style={{ color: c.soft, fontSize: 16, fontWeight: "700" }}>%</Text>
+        <Text style={{ color: c.dim, fontSize: 11 }}>= {rupeesCompact(amount)}</Text>
+      </View>
+    </Card>
+  );
+}
+
 export function CapitalPanel() {
   const c = useColors();
   const sizing = useAppStore((s) => s.sizing);
@@ -119,13 +176,45 @@ export function CapitalPanel() {
         />
       </View>
 
+      <SectionHeader icon="pulse" title="Risk limits" tint={c.red} />
+      <Text style={{ color: c.dim, fontSize: 11, marginTop: -4, marginBottom: Spacing.sm, lineHeight: 16 }}>
+        These decide position size — not margin. A lot&apos;s size comes from what it loses at its
+        stop, so a wide stop earns a smaller position rather than the same one with more risk.
+      </Text>
+      <View style={{ gap: Spacing.sm }}>
+        <PctInput
+          icon="alert-circle-outline"
+          label="Risk per trade"
+          hint="Most you'll lose on any single position if its stop is hit."
+          value={sizing.riskPerTradePct}
+          amount={(sizing.capital * sizing.riskPerTradePct) / 100}
+          onChange={(riskPerTradePct) => setSizing({ riskPerTradePct })}
+        />
+        <PctInput
+          icon="layers-outline"
+          label="Total portfolio risk"
+          hint="Ceiling across every open position at once."
+          value={sizing.maxPortfolioRiskPct}
+          amount={(sizing.capital * sizing.maxPortfolioRiskPct) / 100}
+          onChange={(maxPortfolioRiskPct) => setSizing({ maxPortfolioRiskPct })}
+        />
+      </View>
+
+      <Card tint={c.accent} style={{ padding: Spacing.md, marginTop: Spacing.sm }}>
+        <Text style={{ color: c.soft, fontSize: 10.5, lineHeight: 16 }}>
+          The textbook figures are 2% and 6%. They&apos;re unreachable here — Indian F&amp;O lots are
+          large enough that one lot with a normal stop can risk 10%+ of a retail account — so the
+          defaults are 5% and 15%. Still a real constraint, and honest about the instrument.
+        </Text>
+      </Card>
+
       <SectionHeader icon="information-circle" title="How this is used" />
       <Card flat style={{ padding: Spacing.md }}>
         <Text style={{ color: c.soft, fontSize: 11, lineHeight: 17 }}>
-          The Playbook ranks trades by conviction, then fills them in order until the usable capital
-          runs out — high-conviction names earn two lots, the rest one. Anything that doesn&apos;t
-          fit is still listed, marked as unaffordable, so you can see what you&apos;re missing
-          rather than being quietly shown a shorter list.
+          The Playbook ranks trades by conviction, then sizes each one against four ceilings and
+          takes the tightest: what conviction earns, your per-trade risk limit, what&apos;s left of
+          the portfolio limit, and finally margin. Every position says which ceiling bound it, so a
+          single lot never looks arbitrary.
         </Text>
         <Text style={{ color: c.dim, fontSize: 10, lineHeight: 15, marginTop: Spacing.sm }}>
           The reserve is deliberately excluded from every calculation. It is there so a position

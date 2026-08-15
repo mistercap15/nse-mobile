@@ -519,6 +519,15 @@ export interface PlaybookPick {
   // Added by the capital allocator.
   lots: number;
   wantedLots: number;
+  /** Which ceiling bound this position: conviction / per-trade risk / portfolio risk / margin. */
+  cappedBy: string;
+  riskPerLot: number;
+  /** One lot's risk as a share of the whole account. */
+  riskPerLotPct: number;
+  /** True when even one lot breaches the per-trade limit. */
+  tooRisky: boolean;
+  /** What the account would need to be worth for one lot to fit. */
+  capitalNeededForOneLot: number | null;
   lotCost: number;
   /** Face value of one contract — the exposure behind the margin. */
   notionalPerLot: number;
@@ -558,6 +567,13 @@ export interface PlaybookCapital {
   totalReward: number;
   /** Total risk as a share of the whole account — the number that matters. */
   riskPctOfCapital: number;
+  riskPerTradePct: number;
+  maxPortfolioRiskPct: number;
+  perTradeBudget: number;
+  portfolioBudget: number;
+  riskBudgetLeft: number;
+  riskBudgetUsedPct: number;
+  tooRisky: string[];
   unaffordable: string[];
 }
 

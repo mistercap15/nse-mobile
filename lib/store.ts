@@ -13,6 +13,10 @@ export interface SizingInputs {
   capital: number;
   reserve: number;
   avgLotCost: number;
+  /** Share of TOTAL capital riskable on one trade. Decides position size. */
+  riskPerTradePct: number;
+  /** Ceiling on risk across every open position. */
+  maxPortfolioRiskPct: number;
 }
 
 /**
@@ -47,7 +51,15 @@ export const useAppStore = create<AppState>()(
       selectedMonth: currentMonthIST(),
       setSelectedMonth: (month) => set({ selectedMonth: month }),
 
-      sizing: { capital: 500000, reserve: 100000, avgLotCost: 150000 },
+      sizing: {
+        capital: 500000,
+        reserve: 100000,
+        avgLotCost: 150000,
+        // 5/15 rather than the textbook 2/6: Indian F&O lots are large enough
+        // that 2% refuses almost every trade. Still a real constraint.
+        riskPerTradePct: 5,
+        maxPortfolioRiskPct: 15,
+      },
       setSizing: (patch) => set((s) => ({ sizing: { ...s.sizing, ...patch } })),
 
       recentStocks: [],
@@ -59,16 +71,31 @@ export const useAppStore = create<AppState>()(
     {
       name: "nserank.prefs",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 1,
-      // v0 stored a hard isDark boolean. Drop it rather than translating it —
-      // the point of the change is that the app should follow the device unless
-      // asked otherwise, and a migrated `true` would pin everyone to dark.
+      version: 2,
       migrate: (persisted, version) => {
-        if (version === 0 && persisted && typeof persisted === "object") {
-          const { isDark: _isDark, ...rest } = persisted as Record<string, unknown>;
-          return rest as never;
+        if (!persisted || typeof persisted !== "object") return persisted as never;
+        const state = { ...(persisted as Record<string, unknown>) };
+
+        // v0 stored a hard isDark boolean. Drop it rather than translating it —
+        // the point of that change is that the app follows the device unless
+        // asked otherwise, and a migrated `true` would pin everyone to dark.
+        if (version < 1) delete state.isDark;
+
+        // v1's sizing object predates the risk budgets. Zustand replaces the
+        // whole nested object rather than deep-merging it, so without this the
+        // stored {capital, reserve, avgLotCost} would leave the two risk fields
+        // undefined and every position would size against NaN.
+        if (version < 2) {
+          const sizing = (state.sizing ?? {}) as Partial<SizingInputs>;
+          state.sizing = {
+            capital: sizing.capital ?? 500000,
+            reserve: sizing.reserve ?? 100000,
+            avgLotCost: sizing.avgLotCost ?? 150000,
+            riskPerTradePct: sizing.riskPerTradePct ?? 5,
+            maxPortfolioRiskPct: sizing.maxPortfolioRiskPct ?? 15,
+          };
         }
-        return persisted as never;
+        return state as never;
       },
       // selectedMonth is deliberately not persisted — it should reset to the
       // current month each launch rather than strand you in a stale one.
