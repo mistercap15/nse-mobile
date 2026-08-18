@@ -40,6 +40,12 @@ const LINKS: {
     desc: "Run the seasonal system over the snapshot and compare it to the benchmark",
     icon: "trending-up-outline",
   },
+  {
+    href: "/research/fib-bot",
+    title: "Fib Bot",
+    desc: "Live Fibonacci signal on Nifty futures — what the bot would do right now",
+    icon: "hardware-chip-outline",
+  },
 ];
 
 export default function ResearchScreen() {

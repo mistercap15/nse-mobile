@@ -649,3 +649,68 @@ export interface PlaybookResponse {
   /** Present only when Upstox is down: seasonal ranking with no levels. */
   shortlist?: { symbol: string; sector: string; edge: number; winRate: number; medianReturn: number }[];
 }
+
+// ── Fib Bot (Nifty futures) ─────────────────────────────────────────────────
+// Mirrors GET /api/fib/signal. Every field is computed server-side by
+// app/lib/fib.js — the app renders these numbers and derives none of them.
+
+/** The front-month futures contract, read off the Upstox instrument master. */
+export interface FibContract {
+  instrumentKey: string;
+  tradingSymbol: string;
+  /** Epoch ms of the expiry instant. */
+  expiry: number;
+  /** YYYY-MM-DD in IST. */
+  expiryDate: string;
+  lotSize: number;
+  freezeQty: number;
+  tickSize: number;
+  daysToExpiry: number;
+  rollsInto: { instrumentKey: string; tradingSymbol: string; expiryDate: string } | null;
+}
+
+/**
+ * The signal from the last CLOSED hourly bar. Every price field is null
+ * together when the engine could not produce a signal (too little history, a
+ * flat swing range) — `reason` always says which.
+ */
+export interface FibSignal {
+  /** Bar-open timestamp the signal reflects, e.g. "2026-08-18T15:15:00+05:30". */
+  asOf: string | null;
+  swingHigh: number | null;
+  swingLow: number | null;
+  range: number | null;
+  lastClose: number | null;
+  /** The limit price a buy would rest at. */
+  fibEntry: number | null;
+  stopPrice: number | null;
+  targetPrice: number | null;
+  atr: number | null;
+  stopDistancePts: number | null;
+  targetDistancePts: number | null;
+  rewardRiskRatio: number | null;
+  /** Whether an order should be resting right now. */
+  entryValid: boolean;
+  reason: string;
+}
+
+export interface FibSignalResponse {
+  underlying: string;
+  contract: FibContract | null;
+  signal: FibSignal | null;
+  barsUsed: number;
+  dataAsOf: string | null;
+  /** False when Upstox is disconnected or the token lapsed — show Connect. */
+  tokenValid: boolean;
+  config: {
+    swingLookback: number;
+    fibLevel: number;
+    atrPeriod: number;
+    atrStopMult: number;
+    timeoutBars: number;
+    trendFilter: number;
+  };
+  cached?: boolean;
+  /** Set instead of a signal; the route returns 200 either way. */
+  error: string | null;
+}

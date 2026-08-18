@@ -9,6 +9,7 @@ import type {
   BacktestResponse,
   CandlesResponse,
   EarlyEntryResponse,
+  FibSignalResponse,
   EntryPricesResponse,
   QuotesResponse,
   RankingsResponse,
@@ -49,6 +50,7 @@ export const queryKeys = {
     ["levels", symbols.join(","), month ?? null, strategy, lots] as const,
   backtest: (params: Record<string, unknown>) => ["backtest", params] as const,
   strategies: ["strategies"] as const,
+  fibSignal: (underlying: string) => ["fib-signal", underlying] as const,
 };
 
 // ── Auth ────────────────────────────────────────────────────────────────────
@@ -322,3 +324,32 @@ export function useStrategies(enabled = true) {
 }
 
 export type QueryOpts<T> = Omit<UseQueryOptions<T>, "queryKey" | "queryFn">;
+
+// ── Fib Bot ─────────────────────────────────────────────────────────────────
+
+/**
+ * Live Fibonacci signal for the front-month Nifty future.
+ *
+ * Polls while mounted because the underlying data is an hourly bar — a new one
+ * can only appear once an hour, so a minute's interval is already generous and
+ * anything faster would just burn battery. `staleTime` is deliberately short:
+ * unlike the seasonality endpoints this answer really does change intraday.
+ *
+ * Never throws on a disconnected Upstox — the route answers 200 with
+ * `tokenValid: false` and a reason, which the screen renders as a Connect
+ * prompt rather than an error.
+ */
+export function useFibSignal(underlying = "NIFTY", enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.fibSignal(underlying),
+    queryFn: () =>
+      request<FibSignalResponse>("/api/fib/signal", {
+        params: { underlying },
+        timeoutMs: 60_000,
+      }),
+    enabled,
+    retry: false,
+    staleTime: MINUTE,
+    refetchInterval: MINUTE,
+  });
+}
