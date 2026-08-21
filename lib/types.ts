@@ -416,7 +416,17 @@ export interface QuotesResponse {
 
 export interface UpstoxStatus {
   connected: boolean;
+  /** Only ever true of the daily OAuth token; an analytics token never expires. */
   expired: boolean;
+  /**
+   * Which credential is serving market data.
+   *   "analytics" — the backend's long-lived read-only token. No login involved,
+   *                 and none is possible: tapping Connect would change nothing.
+   *   "oauth"     — a per-session token from the Upstox login, daily expiry.
+   *   null        — neither; price fields fall back to em dashes.
+   * Absent on a backend older than the analytics-token change.
+   */
+  source?: "analytics" | "oauth" | null;
 }
 
 export interface SessionResponse {

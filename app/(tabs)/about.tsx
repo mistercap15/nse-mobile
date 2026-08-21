@@ -76,6 +76,10 @@ export default function AboutScreen() {
 
   const version = Constants.expoConfig?.version ?? "1.0.0";
   const connected = Boolean(upstox.data?.connected && !upstox.data?.expired);
+  // Market data now normally comes from a long-lived token on the backend, so
+  // "CONNECTED" would imply a login that never happened — and the Connect button
+  // below would be offering an action that changes nothing.
+  const viaAnalytics = upstox.data?.source === "analytics";
 
   const confirmSignOut = () => {
     Alert.alert(
@@ -187,12 +191,24 @@ export default function AboutScreen() {
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <Text style={{ color: c.soft, fontSize: 12 }}>Upstox</Text>
             <Badge
-              text={connected ? "CONNECTED" : upstox.data?.expired ? "EXPIRED" : "NOT CONNECTED"}
+              text={
+                viaAnalytics
+                  ? "ANALYTICS TOKEN"
+                  : connected
+                    ? "CONNECTED"
+                    : upstox.data?.expired
+                      ? "EXPIRED"
+                      : "NOT CONNECTED"
+              }
               color={connected ? c.green : upstox.data?.expired ? c.amber : c.dim}
               small
             />
           </View>
-          {!connected ? (
+          {viaAnalytics ? (
+            <Text style={{ color: c.dim, fontSize: 11, marginTop: 6, lineHeight: 16 }}>
+              Prices come from the backend&apos;s long-lived token — no daily login needed.
+            </Text>
+          ) : !connected ? (
             <Button
               label={connecting ? "Connecting…" : "Connect Upstox"}
               onPress={connect}
