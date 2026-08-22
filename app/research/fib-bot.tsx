@@ -1,10 +1,10 @@
 import React from "react";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { ConnectionBanner } from "@/components/ConnectionBanner";
-import { Button, Card, ErrorState, KV, Label, StatCard, StatRow } from "@/components/ui";
+import { Badge, Button, Card, ErrorState, KV, Label, StatCard, StatRow } from "@/components/ui";
 import { SkeletonCard, SkeletonStatRow } from "@/components/Skeleton";
 import { ApiError } from "@/lib/client";
-import { useBotSync, useFibSignal, useUpstoxStatus } from "@/lib/queries";
+import { useBotSync, useBotTokenStatus, useFibSignal, useUpstoxStatus } from "@/lib/queries";
 import { useUpstoxConnect } from "@/lib/useUpstoxConnect";
 import { DASH, num } from "@/lib/format";
 import { Radius, Spacing, Type, useColors, type AppColors } from "@/lib/theme";
@@ -67,10 +67,23 @@ function stateTone(c: AppColors, state: State): { tint: string; label: string; n
 function BotTokenCard() {
   const c = useColors();
   const { data: status } = useUpstoxStatus();
+  const { data: bot } = useBotTokenStatus();
   const { connect, connecting } = useUpstoxConnect();
   const sync = useBotSync();
 
   const linked = status?.oauthLinked;
+  // Read from the DROPLET, not from this device. Syncing on the dashboard shows
+  // up here without the app ever having logged in — which is the whole point:
+  // the bot only needs one live token, not one per client.
+  const synced = bot?.present === true && !bot?.expired;
+  const until =
+    typeof bot?.expiresAt === "number"
+      ? new Date(bot.expiresAt).toLocaleTimeString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : null;
 
   // A 4xx from the sync route is a real answer ("wrong account", "no login"),
   // and its body carries the reason — worth surfacing verbatim rather than
@@ -85,11 +98,30 @@ function BotTokenCard() {
 
   return (
     <Card style={{ padding: Spacing.md, marginTop: Spacing.sm }}>
-      <Label>Bot token</Label>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <Label>Bot token</Label>
+        {synced ? (
+          <Badge text="SYNCED" color={c.green} small />
+        ) : bot?.expired ? (
+          <Badge text="EXPIRED" color={c.amber} small />
+        ) : null}
+      </View>
+
+      {synced ? (
+        <Text style={{ color: c.green, fontSize: 12, marginTop: 6, fontWeight: "700" }}>
+          ✓ Token synced{bot?.account ? ` for ${bot.account}` : ""}
+          {until ? ` — valid until ${until}` : ""}
+        </Text>
+      ) : null}
+
       <Text style={{ color: c.dim, fontSize: 11, marginTop: 4, lineHeight: 16 }}>
-        {linked === false
-          ? "Log in as the trading account first — the token it issues is what gets synced to the droplet."
-          : "Pushes your order-capable token to the droplet so the executor can trade. Prices here use a separate read-only token and are unaffected."}
+        {synced
+          ? "The executor has what it needs. Tokens lapse at 03:30 IST, so this is a once-a-morning job."
+          : bot?.expired
+            ? "The droplet's token has expired — sync a fresh one."
+            : linked === false
+              ? "Log in as the trading account first — the token it issues is what gets synced to the droplet."
+              : "Pushes your order-capable token to the droplet so the executor can trade. Prices here use a separate read-only token and are unaffected."}
       </Text>
 
       {success ? (
@@ -114,9 +146,10 @@ function BotTokenCard() {
         />
       ) : linked === true ? (
         <Button
-          label={sync.isPending ? "Syncing…" : "Sync token to droplet"}
+          label={sync.isPending ? "Syncing…" : synced ? "Re-sync" : "Sync token to droplet"}
           onPress={() => sync.mutate()}
           loading={sync.isPending}
+          variant={synced ? "ghost" : undefined}
           style={{ marginTop: Spacing.md }}
         />
       ) : null}

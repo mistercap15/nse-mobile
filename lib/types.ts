@@ -436,6 +436,21 @@ export interface UpstoxStatus {
   oauthLinked?: boolean;
 }
 
+/**
+ * Whether the droplet holds a live order-capable token, straight from the
+ * droplet itself. This is the state BOTH clients render: "am I logged in" is
+ * per-device and will always differ between web and app, while "is the droplet
+ * armed" is one global fact. Never carries the token.
+ */
+export interface BotTokenStatus {
+  present: boolean;
+  expiresAt: number | null;
+  account: string | null;
+  expired: boolean;
+  /** Set when the droplet couldn't be reached — treat as unknown, not "absent". */
+  reason?: string | null;
+}
+
 /** Result of pushing the order-capable token to the bot droplet. Never carries
  *  the token itself. */
 export interface BotSyncResponse {

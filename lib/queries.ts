@@ -9,6 +9,7 @@ import type {
   BacktestResponse,
   CandlesResponse,
   BotSyncResponse,
+  BotTokenStatus,
   EarlyEntryResponse,
   FibSignalResponse,
   EntryPricesResponse,
@@ -52,6 +53,7 @@ export const queryKeys = {
   backtest: (params: Record<string, unknown>) => ["backtest", params] as const,
   strategies: ["strategies"] as const,
   fibSignal: (underlying: string) => ["fib-signal", underlying] as const,
+  botToken: ["bot", "token-status"] as const,
 };
 
 // ── Auth ────────────────────────────────────────────────────────────────────
@@ -367,6 +369,21 @@ export function useFibSignal(underlying = "NIFTY", enabled = true) {
  * Invalidates the Upstox status afterwards because a failed sync often means the
  * login lapsed, and the screen decides which button to show from that.
  */
+/**
+ * Does the droplet hold a live token? Asked of the droplet via the backend, so
+ * the app and the web show the same answer — syncing from the dashboard is
+ * reflected here without the app having logged in at all.
+ */
+export function useBotTokenStatus(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.botToken,
+    queryFn: () => request<BotTokenStatus>("/api/bot/sync", { timeoutMs: 20_000 }),
+    enabled,
+    retry: false,
+    staleTime: 2 * MINUTE,
+  });
+}
+
 export function useBotSync() {
   const qc = useQueryClient();
   return useMutation({
@@ -375,6 +392,9 @@ export function useBotSync() {
     // A 4xx here is a real answer ("wrong account", "no login"), not a transport
     // failure, so it arrives as ApiError with the body attached rather than
     // throwing away the reason.
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.upstoxStatus }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.upstoxStatus });
+      qc.invalidateQueries({ queryKey: queryKeys.botToken });
+    },
   });
 }
