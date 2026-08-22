@@ -8,6 +8,7 @@ import type {
   PlaybookResponse,
   BacktestResponse,
   CandlesResponse,
+  BotSyncResponse,
   EarlyEntryResponse,
   FibSignalResponse,
   EntryPricesResponse,
@@ -351,5 +352,29 @@ export function useFibSignal(underlying = "NIFTY", enabled = true) {
     retry: false,
     staleTime: MINUTE,
     refetchInterval: MINUTE,
+  });
+}
+
+/**
+ * Push the order-capable Upstox token to the bot droplet.
+ *
+ * A mutation, not a query: it has a side effect on another machine and must only
+ * ever run when the button is pressed. The backend verifies the token belongs to
+ * the trading account before it forwards anything, and answers with a plain
+ * `synced` flag — the token itself is never in the response, so nothing here
+ * ever holds it.
+ *
+ * Invalidates the Upstox status afterwards because a failed sync often means the
+ * login lapsed, and the screen decides which button to show from that.
+ */
+export function useBotSync() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      request<BotSyncResponse>("/api/bot/sync", { method: "POST", timeoutMs: 30_000 }),
+    // A 4xx here is a real answer ("wrong account", "no login"), not a transport
+    // failure, so it arrives as ApiError with the body attached rather than
+    // throwing away the reason.
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.upstoxStatus }),
   });
 }

@@ -1,9 +1,11 @@
 import React from "react";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { ConnectionBanner } from "@/components/ConnectionBanner";
-import { Card, ErrorState, KV, Label, StatCard, StatRow } from "@/components/ui";
+import { Button, Card, ErrorState, KV, Label, StatCard, StatRow } from "@/components/ui";
 import { SkeletonCard, SkeletonStatRow } from "@/components/Skeleton";
-import { useFibSignal } from "@/lib/queries";
+import { ApiError } from "@/lib/client";
+import { useBotSync, useFibSignal, useUpstoxStatus } from "@/lib/queries";
+import { useUpstoxConnect } from "@/lib/useUpstoxConnect";
 import { DASH, num } from "@/lib/format";
 import { Radius, Spacing, Type, useColors, type AppColors } from "@/lib/theme";
 import type { FibSignal } from "@/lib/types";
@@ -49,6 +51,77 @@ function stateTone(c: AppColors, state: State): { tint: string; label: string; n
     default:
       return { tint: c.dim, label: "SIGNAL UNAVAILABLE", note: "Nothing to act on yet." };
   }
+}
+
+/**
+ * Push the order-capable token to the droplet, mirroring the web's /fib panel.
+ *
+ * Two sequential actions, so only ever one button: log in, then sync. Showing a
+ * login you don't need beside a sync you can't do is noise, and on a phone the
+ * space matters more.
+ *
+ * `oauthLinked` is the deciding field, NOT `connected` — market data comes from
+ * the backend's analytics token, so `connected` is true whether or not anyone
+ * has personally logged in, and using it here would hide the login forever.
+ */
+function BotTokenCard() {
+  const c = useColors();
+  const { data: status } = useUpstoxStatus();
+  const { connect, connecting } = useUpstoxConnect();
+  const sync = useBotSync();
+
+  const linked = status?.oauthLinked;
+
+  // A 4xx from the sync route is a real answer ("wrong account", "no login"),
+  // and its body carries the reason — worth surfacing verbatim rather than
+  // flattening every failure to "something went wrong".
+  const failure = sync.error
+    ? ((sync.error as ApiError).body as { error?: string })?.error ??
+      (sync.error as Error).message
+    : sync.data && !sync.data.synced
+      ? sync.data.error
+      : null;
+  const success = sync.data?.synced ? sync.data : null;
+
+  return (
+    <Card style={{ padding: Spacing.md, marginTop: Spacing.sm }}>
+      <Label>Bot token</Label>
+      <Text style={{ color: c.dim, fontSize: 11, marginTop: 4, lineHeight: 16 }}>
+        {linked === false
+          ? "Log in as the trading account first — the token it issues is what gets synced to the droplet."
+          : "Pushes your order-capable token to the droplet so the executor can trade. Prices here use a separate read-only token and are unaffected."}
+      </Text>
+
+      {success ? (
+        <Text style={{ color: c.green, fontSize: 11.5, marginTop: Spacing.sm }}>
+          ✓ Synced for {success.account} — valid until 03:30 IST
+        </Text>
+      ) : failure ? (
+        <Text style={{ color: c.red, fontSize: 11.5, marginTop: Spacing.sm, lineHeight: 16 }}>
+          ✗ {failure}
+        </Text>
+      ) : null}
+
+      {/* Nothing renders while the link state is unknown — briefly empty beats
+          briefly wrong, since one button starts a browser round-trip and the
+          other touches a live broker credential. */}
+      {linked === false ? (
+        <Button
+          label={connecting ? "Opening Upstox…" : "Log in to trading account"}
+          onPress={connect}
+          loading={connecting}
+          style={{ marginTop: Spacing.md }}
+        />
+      ) : linked === true ? (
+        <Button
+          label={sync.isPending ? "Syncing…" : "Sync token to droplet"}
+          onPress={() => sync.mutate()}
+          loading={sync.isPending}
+          style={{ marginTop: Spacing.md }}
+        />
+      ) : null}
+    </Card>
+  );
 }
 
 export default function FibBotScreen() {
@@ -212,6 +285,8 @@ export default function FibBotScreen() {
               />
             ) : null}
           </Card>
+
+          <BotTokenCard />
 
           {/* ── Footnotes ──────────────────────────────────────────────── */}
           <View

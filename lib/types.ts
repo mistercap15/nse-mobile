@@ -427,6 +427,23 @@ export interface UpstoxStatus {
    * Absent on a backend older than the analytics-token change.
    */
   source?: "analytics" | "oauth" | null;
+  /**
+   * Whether THIS request carries a personal Upstox OAuth token, as opposed to
+   * the backend's shared analytics token. Distinct from `connected`, which the
+   * analytics token satisfies on its own — so it is the only field that can
+   * answer "does this user still need to log in". Absent on older backends.
+   */
+  oauthLinked?: boolean;
+}
+
+/** Result of pushing the order-capable token to the bot droplet. Never carries
+ *  the token itself. */
+export interface BotSyncResponse {
+  synced: boolean;
+  account?: string;
+  expiresAt?: number;
+  expiresAtIso?: string;
+  error?: string;
 }
 
 export interface SessionResponse {
