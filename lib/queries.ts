@@ -12,6 +12,7 @@ import type {
   BotTokenStatus,
   EarlyEntryResponse,
   FibSignalResponse,
+  InsideBarSignalResponse,
   EntryPricesResponse,
   QuotesResponse,
   RankingsResponse,
@@ -54,6 +55,7 @@ export const queryKeys = {
   strategies: ["strategies"] as const,
   fibSignal: (underlying: string) => ["fib-signal", underlying] as const,
   botToken: ["bot", "token-status"] as const,
+  insideBarSignal: (underlying: string) => ["inside-bar-signal", underlying] as const,
 };
 
 // ── Auth ────────────────────────────────────────────────────────────────────
@@ -374,6 +376,26 @@ export function useFibSignal(underlying = "NIFTY", enabled = true) {
  * the app and the web show the same answer — syncing from the dashboard is
  * reflected here without the app having logged in at all.
  */
+/**
+ * Live inside-bar breakout signal. Same cadence and failure behaviour as
+ * useFibSignal — one strategy per hook, identical shape, so a screen written for
+ * one reads the other without translation.
+ */
+export function useInsideBarSignal(underlying = "NIFTY", enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.insideBarSignal(underlying),
+    queryFn: () =>
+      request<InsideBarSignalResponse>("/api/inside-bar/signal", {
+        params: { underlying },
+        timeoutMs: 60_000,
+      }),
+    enabled,
+    retry: false,
+    staleTime: MINUTE,
+    refetchInterval: MINUTE,
+  });
+}
+
 export function useBotTokenStatus(enabled = true) {
   return useQuery({
     queryKey: queryKeys.botToken,

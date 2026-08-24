@@ -80,6 +80,7 @@ function Gate() {
           <Stack.Screen name="research/calendar" options={{ title: "Calendar" }} />
           <Stack.Screen name="research/backtest" options={{ title: "Backtest" }} />
           <Stack.Screen name="research/fib-bot" options={{ title: "Fib Bot" }} />
+          <Stack.Screen name="research/inside-bar" options={{ title: "Inside Bar" }} />
         </Stack>
       ) : (
         <LoginScreen onAuthenticated={handleAuthed} />

@@ -756,3 +756,51 @@ export interface FibSignalResponse {
   /** Set instead of a signal; the route returns 200 either way. */
   error: string | null;
 }
+
+// ── Inside Bar bot (Nifty futures) ──────────────────────────────────────────
+// Mirrors GET /api/inside-bar/signal. Same shape discipline as FibSignal: the
+// app renders these and derives none of them.
+
+/** The breakout state. An inside bar sets up a watch; the break picks the side. */
+export type InsideBarState =
+  | "no_setup"
+  | "watching_breakout"
+  | "long_signal"
+  | "short_signal";
+
+export interface InsideBarSignal {
+  asOf: string | null;
+  /** The bar the inside bar sits within — its extremes are the triggers. */
+  motherHigh: number | null;
+  motherLow: number | null;
+  range: number | null;
+  /** Whether the last CLOSED bar was itself an inside bar. */
+  isInsideBar: boolean;
+  activeMotherHigh: number | null;
+  activeMotherLow: number | null;
+  longTrigger: number | null;
+  shortTrigger: number | null;
+  longStop: number | null;
+  shortStop: number | null;
+  longTarget: number | null;
+  shortTarget: number | null;
+  lastClose: number | null;
+  state: InsideBarState;
+  direction: "long" | "short" | null;
+  /** Whether an order should be working right now — a stale breakout is not one. */
+  entryValid: boolean;
+  breakoutBarsAgo: number | null;
+  reason: string;
+}
+
+export interface InsideBarSignalResponse {
+  underlying: string;
+  contract: FibContract | null;
+  signal: InsideBarSignal | null;
+  barsUsed: number;
+  dataAsOf: string | null;
+  tokenValid: boolean;
+  config: { targetMult: number; timeoutBars: number; setupLookback: number; maxBreakoutAge: number };
+  cached?: boolean;
+  error: string | null;
+}

@@ -46,6 +46,12 @@ const LINKS: {
     desc: "Live Fibonacci signal on Nifty futures — what the bot would do right now",
     icon: "hardware-chip-outline",
   },
+  {
+    href: "/research/inside-bar",
+    title: "Inside Bar",
+    desc: "Inside-bar breakout on Nifty futures — long and short, mother-bar levels",
+    icon: "layers-outline",
+  },
 ];
 
 export default function ResearchScreen() {
