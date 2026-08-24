@@ -708,6 +708,15 @@ export interface FibContract {
   freezeQty: number;
   tickSize: number;
   daysToExpiry: number;
+  /**
+   * True when the backend switched to this contract EARLY — the previous month
+   * was too close to expiry for a trade to run its course. Worth surfacing:
+   * during the roll window the old contract is still trading, so an unexplained
+   * contract change reads as a bug rather than a decision. Absent on older
+   * backends, hence optional.
+   */
+  rolled?: boolean;
+  /** Null while rolled — the successor to THIS contract is not listed yet. */
   rollsInto: { instrumentKey: string; tradingSymbol: string; expiryDate: string } | null;
 }
 

@@ -201,9 +201,15 @@ export default function FibBotScreen() {
         <>
           {/* ── Contract strip ─────────────────────────────────────────── */}
           <Card style={{ padding: Spacing.md, marginTop: Spacing.md }}>
-            <Text style={{ color: c.text, fontSize: 15, fontWeight: "800", ...Type.numeric }}>
-              {contract?.tradingSymbol ?? DASH}
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm }}>
+              <Text style={{ color: c.text, fontSize: 15, fontWeight: "800", ...Type.numeric }}>
+                {contract?.tradingSymbol ?? DASH}
+              </Text>
+              {/* The front month is still trading during the roll window, so an
+                  unannounced contract change looks like a fault. This says the
+                  switch was deliberate. */}
+              {contract?.rolled ? <Badge text="ROLLED EARLY" color={c.purple} small /> : null}
+            </View>
             <Text style={{ color: c.dim, fontSize: 10, marginTop: 2, ...Type.numeric }}>
               {contract?.instrumentKey ?? DASH}
             </Text>
