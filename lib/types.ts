@@ -813,3 +813,29 @@ export interface InsideBarSignalResponse {
   cached?: boolean;
   error: string | null;
 }
+
+// ── Crypto Fib bot (Delta perpetuals) ───────────────────────────────────────
+// Mirrors GET /api/crypto-fib/signal. The `signal` is the SAME FibSignal shape
+// the Nifty bot returns, because it is produced by the same engine — only the
+// candles differ. There is no `contract` and no `tokenValid`: Delta's candle
+// endpoint is public, so this needs no broker credential at all.
+
+export interface CryptoFibResponse {
+  /** Resolved Delta symbol, e.g. "ETHUSD". Null when the request was unknown. */
+  symbol: string | null;
+  requested: string;
+  /** Which exchange the data came from. Must be surfaced — testnet and mainnet
+   *  must never be mistaken for one another. */
+  network: "testnet" | "mainnet";
+  /** Coin per lot: 0.001 BTC, 0.01 ETH. */
+  lotSize: number | null;
+  signal: FibSignal | null;
+  barsUsed: number;
+  dataAsOf: string | null;
+  config: {
+    swingLookback: number; fibLevel: number; atrPeriod: number;
+    atrStopMult: number; timeoutBars: number; trendFilter: number;
+  };
+  cached?: boolean;
+  error: string | null;
+}

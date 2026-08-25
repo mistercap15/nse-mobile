@@ -10,6 +10,7 @@ import type {
   CandlesResponse,
   BotSyncResponse,
   BotTokenStatus,
+  CryptoFibResponse,
   EarlyEntryResponse,
   FibSignalResponse,
   InsideBarSignalResponse,
@@ -56,6 +57,7 @@ export const queryKeys = {
   fibSignal: (underlying: string) => ["fib-signal", underlying] as const,
   botToken: ["bot", "token-status"] as const,
   insideBarSignal: (underlying: string) => ["inside-bar-signal", underlying] as const,
+  cryptoFibSignal: (symbol: string) => ["crypto-fib-signal", symbol] as const,
 };
 
 // ── Auth ────────────────────────────────────────────────────────────────────
@@ -387,6 +389,29 @@ export function useInsideBarSignal(underlying = "NIFTY", enabled = true) {
     queryFn: () =>
       request<InsideBarSignalResponse>("/api/inside-bar/signal", {
         params: { underlying },
+        timeoutMs: 60_000,
+      }),
+    enabled,
+    retry: false,
+    staleTime: MINUTE,
+    refetchInterval: MINUTE,
+  });
+}
+
+/**
+ * Live swing-Fib signal on a Delta perpetual. Same shape as useFibSignal because
+ * it is the same engine — the screens differ only in what they say about the
+ * instrument.
+ *
+ * Crypto trades 24/7, so this keeps polling at all hours rather than idling
+ * outside a session.
+ */
+export function useCryptoFibSignal(symbol = "ETH", enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.cryptoFibSignal(symbol),
+    queryFn: () =>
+      request<CryptoFibResponse>("/api/crypto-fib/signal", {
+        params: { symbol },
         timeoutMs: 60_000,
       }),
     enabled,

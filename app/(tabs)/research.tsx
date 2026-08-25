@@ -52,6 +52,12 @@ const LINKS: {
     desc: "Inside-bar breakout on Nifty futures — long and short, mother-bar levels",
     icon: "layers-outline",
   },
+  {
+    href: "/research/crypto-fib",
+    title: "Crypto Fib",
+    desc: "The same swing-Fib strategy on Delta perpetuals — BTC and ETH, testnet",
+    icon: "logo-bitcoin",
+  },
 ];
 
 export default function ResearchScreen() {
