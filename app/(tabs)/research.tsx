@@ -47,12 +47,6 @@ const LINKS: {
     icon: "hardware-chip-outline",
   },
   {
-    href: "/research/inside-bar",
-    title: "Inside Bar",
-    desc: "Inside-bar breakout on Nifty futures — long and short, mother-bar levels",
-    icon: "layers-outline",
-  },
-  {
     href: "/research/crypto-fib",
     title: "Crypto Fib",
     desc: "The same swing-Fib strategy on Delta perpetuals — BTC and ETH, testnet",
