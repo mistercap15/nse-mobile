@@ -1,9 +1,9 @@
 import React from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
-import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useColors, useIsDark } from "@/lib/theme";
 
@@ -39,22 +39,56 @@ export function TabBar({
         styles.wrap,
         {
           bottom: insets.bottom + 10,
-          borderColor: isDark ? "rgba(255,255,255,0.10)" : c.border,
+          borderColor: isDark ? "rgba(255,255,255,0.14)" : c.border,
           shadowOpacity: isDark ? 0.45 : 0.14,
         },
       ]}
     >
+      {/* experimentalBlurMethod is what actually turns the blur on for Android —
+          it defaults to "none" there, which is why this used to be a flat
+          translucent slab and needed a near-opaque scrim to look deliberate. */}
       <BlurView
-        intensity={isDark ? 60 : 80}
+        intensity={isDark ? 72 : 88}
         tint={isDark ? "dark" : "light"}
+        experimentalBlurMethod="dimezisBlurView"
+        blurReductionFactor={3}
         style={StyleSheet.absoluteFill}
       />
-      {/* The blur alone reads muddy over bright charts; this keeps contrast. */}
+
+      {/* Thin enough to let the blur read as glass, heavy enough that labels
+          stay legible when a bright chart scrolls underneath. */}
       <View
         style={[
           StyleSheet.absoluteFill,
-          { backgroundColor: isDark ? "rgba(7,11,18,0.82)" : "rgba(255,255,255,0.82)" },
+          { backgroundColor: isDark ? "rgba(8,12,20,0.45)" : "rgba(255,255,255,0.62)" },
         ]}
+      />
+
+      {/* Sheen. Light gathers along the top face of a glass slab and falls off
+          fast — without it the bar reads as flat frosted plastic. */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={
+          isDark
+            ? ["rgba(255,255,255,0.13)", "rgba(255,255,255,0.025)", "rgba(255,255,255,0)"]
+            : ["rgba(255,255,255,0.80)", "rgba(255,255,255,0.22)", "rgba(255,255,255,0)"]
+        }
+        locations={[0, 0.42, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* Rim light: the lit edge of the slab, brightest mid-span so it curves
+          away at the corners instead of ending abruptly. */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={[
+          "rgba(255,255,255,0)",
+          isDark ? "rgba(255,255,255,0.40)" : "rgba(255,255,255,0.95)",
+          "rgba(255,255,255,0)",
+        ]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.rim}
       />
 
       <View style={styles.row}>
@@ -71,7 +105,6 @@ export function TabBar({
               canPreventDefault: true,
             });
             if (!focused && !event.defaultPrevented) {
-              if (Platform.OS !== "web") Haptics.selectionAsync();
               navigation.navigate(route.name);
             }
           };
@@ -145,6 +178,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     gap: 2,
   },
+  rim: { position: "absolute", top: 0, left: 18, right: 18, height: 1 },
   dot: { width: 4, height: 4, borderRadius: 2 },
   label: { fontSize: 9.5, letterSpacing: 0.2 },
 });

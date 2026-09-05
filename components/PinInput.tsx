@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Keyboard, Platform, StyleSheet, TextInput, View } from "react-native";
-import * as Haptics from "expo-haptics";
+import { Keyboard, StyleSheet, TextInput, View } from "react-native";
 import { Radius, Spacing, useColors } from "@/lib/theme";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -58,7 +57,6 @@ export function PinInput({
     const digits = text.replace(/\D/g, "").slice(0, LENGTH);
     setValue(digits);
     if (digits.length === LENGTH) {
-      if (Platform.OS !== "web") Haptics.selectionAsync();
       onComplete(digits);
     }
   };
