@@ -53,7 +53,7 @@ export function TabBar({
       <View
         style={[
           StyleSheet.absoluteFill,
-          { backgroundColor: isDark ? "rgba(14,21,37,0.72)" : "rgba(255,255,255,0.82)" },
+          { backgroundColor: isDark ? "rgba(7,11,18,0.82)" : "rgba(255,255,255,0.82)" },
         ]}
       />
 

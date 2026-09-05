@@ -10,13 +10,21 @@ import { useAppStore } from "./store";
 // Never hardcode a colour in a screen — both themes have to work.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// AMOLED: `bg` is true #000000 so the panel simply switches those pixels off —
+// the black is absolute rather than a dark navy, and the raised surfaces read
+// as genuinely lit against it. The faint blue cast is kept in `surface`/`card`
+// so the app still looks like itself and doesn't flatten into grey.
 export const DarkColors = {
-  bg:      "#090E1A", // 9 14 26
-  surface: "#0E1525", // 14 21 37
-  card:    "#131D30", // 19 29 48
-  border:  "#1E2D45", // 30 45 69
+  bg:      "#000000", // 0 0 0      — true black, the AMOLED ground
+  surface: "#070B12", // 7 11 18    — barely lifted
+  card:    "#0C111B", // 12 17 27   — the step that makes a card a card
+  border:  "#1F2A3D", // 31 42 61   — carries more of the structure now that
+                      //              shadows have nothing to fall on
   text:    "#E2E8F0", // 226 232 240
-  dim:     "#64748B", // 100 116 139
+  dim:     "#6E7E95", // 110 126 149  — nudged up from #64748B: these are
+                      //              9.5px labels, and this is the smallest
+                      //              step that clears 4.5:1 on both the black
+                      //              ground and a card
   soft:    "#94A3B8", // 148 163 184
   muted:   "#334155", // 51 65 85
   accent:  "#4D9FFF", // 77 159 255
@@ -117,7 +125,9 @@ export function elevation(isDark: boolean, level: 1 | 2 | 3 = 1, tint?: string) 
 
 /** Hairline that reads as a highlight on dark, a border on light. */
 export function hairline(c: AppColors, isDark: boolean): string {
-  return isDark ? "rgba(255,255,255,0.06)" : c.border;
+  // Nudged up from 0.06: against true black a hairline is doing the separating
+  // that a drop shadow used to help with, and 0.06 all but disappeared.
+  return isDark ? "rgba(255,255,255,0.08)" : c.border;
 }
 
 // ── Gradients ───────────────────────────────────────────────────────────────
@@ -125,8 +135,9 @@ export function hairline(c: AppColors, isDark: boolean): string {
 // user is actually here to read.
 export function surfaceGradient(c: AppColors, isDark: boolean): [string, string] {
   // A wider spread between the stops gives the card visible form rather than a
-  // barely-there wash.
-  return isDark ? ["#16223A", "#0D1524"] : ["#FFFFFF", "#F1F1EA"];
+  // barely-there wash. On true black the lower stop runs almost to the ground
+  // colour, so a card fades into the page instead of ending on a hard edge.
+  return isDark ? ["#131B2B", "#05080E"] : ["#FFFFFF", "#F1F1EA"];
 }
 
 export function tintGradient(hex: string, isDark: boolean): [string, string] {
