@@ -45,11 +45,11 @@ function stateOf(signal: FibSignal | null, tokenValid: boolean): State {
 function stateTone(c: AppColors, state: State): { tint: string; label: string; note: string } {
   switch (state) {
     case "armed":
-      return { tint: c.green, label: "ORDER ARMED", note: "A buy order should be resting at the entry price." };
+      return { tint: c.green, label: "READY TO BUY", note: "A buy order should be waiting at this price." };
     case "aside":
-      return { tint: c.amber, label: "STAND ASIDE", note: "No order should be resting right now." };
+      return { tint: c.amber, label: "WAITING FOR A SETUP", note: "No order should be waiting right now." };
     default:
-      return { tint: c.dim, label: "SIGNAL UNAVAILABLE", note: "Nothing to act on yet." };
+      return { tint: c.dim, label: "NO SIGNAL", note: "Nothing to act on yet." };
   }
 }
 
@@ -278,8 +278,8 @@ export default function FibBotScreen() {
             </Text>
             <Text style={{ color: c.dim, fontSize: 10.5, marginTop: 2 }}>
               {state === "armed"
-                ? "An order should be resting here now"
-                : "Where an order would rest if the setup re-arms"}
+                ? "An order should be waiting here now"
+                : "Where an order would wait once a setup appears"}
             </Text>
           </Card>
 

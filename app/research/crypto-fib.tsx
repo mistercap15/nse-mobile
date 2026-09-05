@@ -42,12 +42,12 @@ export default function CryptoFibScreen() {
       : null;
 
   const tint = !signal ? c.dim : armed ? c.green : c.amber;
-  const label = !signal ? "SIGNAL UNAVAILABLE" : armed ? "ORDER ARMED" : "STAND ASIDE";
+  const label = !signal ? "NO SIGNAL" : armed ? "READY TO BUY" : "WAITING FOR A SETUP";
   const note = !signal
     ? data?.error ?? "Nothing to act on yet."
     : armed
-      ? "A limit buy should be resting at the entry price."
-      : "No order should be resting right now.";
+      ? "A buy order should be waiting at this price."
+      : "No order should be waiting right now.";
 
   return (
     <ScrollView
@@ -161,7 +161,7 @@ export default function CryptoFibScreen() {
           <View style={{ marginTop: Spacing.md, padding: Spacing.md, borderRadius: Radius.md,
                          borderWidth: 1, borderColor: c.border, backgroundColor: c.surface }}>
             <Text style={{ color: c.dim, fontSize: 10.5, lineHeight: 16 }}>
-              The same engine as the Nifty Fib bot, not a second copy. Entry is a resting limit, so it
+              The same engine as the Nifty Fib bot, not a second copy. The buy is a waiting limit order, so it
               fills at that price or better, or not at all. Leverage is capped at 2× in code — a ~2%
               stop at 50× is the entire margin, so the position would liquidate before reaching the
               stop it was given.
