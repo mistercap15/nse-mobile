@@ -17,14 +17,15 @@ import { useAppStore } from "./store";
 export const DarkColors = {
   bg:      "#000000", // 0 0 0      — true black, the AMOLED ground
   surface: "#070B12", // 7 11 18    — barely lifted
-  card:    "#0C111B", // 12 17 27   — the step that makes a card a card
+  card:    "#10161F", // 16 22 31   — the step that makes a card a card
   border:  "#1F2A3D", // 31 42 61   — carries more of the structure now that
                       //              shadows have nothing to fall on
   text:    "#E2E8F0", // 226 232 240
-  dim:     "#6E7E95", // 110 126 149  — nudged up from #64748B: these are
+  dim:     "#708097", // 114 130 153  — nudged up from #64748B: these are
                       //              9.5px labels, and this is the smallest
                       //              step that clears 4.5:1 on both the black
-                      //              ground and a card
+                      //              ground and a card (re-derived after the
+                      //              card was lifted to #10161F)
   soft:    "#94A3B8", // 148 163 184
   muted:   "#334155", // 51 65 85
   accent:  "#4D9FFF", // 77 159 255
@@ -137,7 +138,7 @@ export function surfaceGradient(c: AppColors, isDark: boolean): [string, string]
   // A wider spread between the stops gives the card visible form rather than a
   // barely-there wash. On true black the lower stop runs almost to the ground
   // colour, so a card fades into the page instead of ending on a hard edge.
-  return isDark ? ["#131B2B", "#05080E"] : ["#FFFFFF", "#F1F1EA"];
+  return isDark ? ["#17202E", "#090C10"] : ["#FFFFFF", "#F1F1EA"];
 }
 
 export function tintGradient(hex: string, isDark: boolean): [string, string] {
