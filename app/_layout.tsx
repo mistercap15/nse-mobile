@@ -80,6 +80,7 @@ function Gate() {
           <Stack.Screen name="research/calendar" options={{ title: "Calendar" }} />
           <Stack.Screen name="research/backtest" options={{ title: "Backtest" }} />
           <Stack.Screen name="research/fib-bot" options={{ title: "Fib Bot" }} />
+          <Stack.Screen name="research/fib-5m" options={{ title: "5-Min Fib" }} />
           <Stack.Screen name="research/crypto-fib" options={{ title: "Crypto Fib" }} />
         </Stack>
       ) : (

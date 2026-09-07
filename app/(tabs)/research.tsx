@@ -47,6 +47,12 @@ const LINKS: {
     icon: "hardware-chip-outline",
   },
   {
+    href: "/research/fib-5m",
+    title: "5-Min Fib",
+    desc: "The same strategy on 5-minute bars — fills the idle time between hourly setups",
+    icon: "timer-outline",
+  },
+  {
     href: "/research/crypto-fib",
     title: "Crypto Fib",
     desc: "The same swing-Fib strategy on Delta perpetuals — BTC and ETH, testnet",

@@ -54,6 +54,8 @@ export const queryKeys = {
   backtest: (params: Record<string, unknown>) => ["backtest", params] as const,
   strategies: ["strategies"] as const,
   fibSignal: (underlying: string) => ["fib-signal", underlying] as const,
+
+  fib5mSignal: (underlying: string) => ["fib5m-signal", underlying] as const,
   botToken: ["bot", "token-status"] as const,
   cryptoFibSignal: (symbol: string) => ["crypto-fib-signal", symbol] as const,
 };
@@ -385,6 +387,32 @@ export function useFibSignal(underlying = "NIFTY", enabled = true) {
  * Crypto trades 24/7, so this keeps polling at all hours rather than idling
  * outside a session.
  */
+/**
+ * Live swing-Fib signal on 5-minute Nifty futures bars.
+ *
+ * Same engine and same response shape as useFibSignal — only the candle feed
+ * differs — so the screen can reuse FibSignalResponse verbatim.
+ *
+ * Polls faster than the hourly hook because a 5-minute bar closes twelve times
+ * an hour; a one-minute refresh on an hourly signal is generous, on this one it
+ * is the minimum that keeps up.
+ */
+export function useFib5mSignal(underlying = "NIFTY", enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.fib5mSignal(underlying),
+    queryFn: () =>
+      request<FibSignalResponse>("/api/fib-5m/signal", {
+        params: { underlying },
+        timeoutMs: 60_000,
+      }),
+    enabled,
+    retry: false,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+}
+
+
 export function useCryptoFibSignal(symbol = "ETH", enabled = true) {
   return useQuery({
     queryKey: queryKeys.cryptoFibSignal(symbol),
