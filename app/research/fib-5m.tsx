@@ -2,7 +2,7 @@ import React from "react";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { Badge, Card, ErrorState, KV, Label, StatCard, StatRow } from "@/components/ui";
 import { SkeletonCard, SkeletonStatRow } from "@/components/Skeleton";
-import { useFib5mSignal, useFibSignal } from "@/lib/queries";
+import { useBotStatus, useFib5mSignal, useFibSignal } from "@/lib/queries";
 import { DASH, num } from "@/lib/format";
 import { Radius, Spacing, Type, useColors } from "@/lib/theme";
 
@@ -14,11 +14,17 @@ import { Radius, Spacing, Type, useColors } from "@/lib/theme";
 // bot is idle, so its own signal cannot answer "what is it doing". Both signals
 // are fetched and shown together, senior above junior.
 //
-// HONEST ABOUT WHAT IT CAN SEE, on screen and not just here. This reads the two
-// signal routes. It cannot see the droplet's state files, the exchange position
-// or the contract claim — and the bot weighs all three — so the card says what
-// the SIGNALS imply and labels itself as derived. Telegram and /status stay the
-// authority on what the bot actually did.
+// TWO SOURCES, AND THE CARD SAYS WHICH ONE IT IS USING. /api/bot/status serves
+// what the bots on the droplet actually believe — holding, armed, paused,
+// halted, and who owns the contract claim. When that is reachable the card
+// shows real state; when it is not, it falls back to what the two SIGNALS imply
+// and says so. A screen that cannot tell you which it is showing is worse than
+// one that shows less.
+//
+// Not academic: on 7 Sep the signals were entirely normal while the hourly bot
+// had adopted this bot's position and both were bracketing the same lots. Only
+// the bots' own state showed it — hence the red banner when both report a
+// position at once.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const px = (n: number | null | undefined, d = 2) => num(n, d);
@@ -32,6 +38,7 @@ export default function Fib5mScreen() {
   const c = useColors();
   const { data, isLoading, isRefetching, error, refetch } = useFib5mSignal();
   const hourly = useFibSignal();
+  const status = useBotStatus();
 
   const signal = data?.signal ?? null;
   const armed = signal?.entryValid === true;
@@ -40,7 +47,27 @@ export default function Fib5mScreen() {
 
   const hourlySignal = hourly.data?.signal ?? null;
   const hourlyArmed = hourlySignal?.entryValid === true;
-  const yielding = hourlyArmed;
+
+  // Live bot state wins wherever it is available; the signals are the fallback.
+  const live = status.data?.reachable === true;
+  const hourlyBot = live ? status.data?.bots?.hourly ?? null : null;
+  const fiveBot = live ? status.data?.bots?.fivemin ?? null : null;
+  const claim = live ? status.data?.claim ?? null : null;
+  const bothHolding = Boolean(hourlyBot?.holding && fiveBot?.holding);
+
+  const yielding = live
+    ? Boolean(hourlyBot?.holding || hourlyBot?.armed || (claim && claim.owner !== "5m"))
+    : hourlyArmed;
+
+  const botLine = (b: typeof hourlyBot, fallback: string) => {
+    if (!b) return fallback;
+    if (b.service !== "active") return `SERVICE ${b.service.toUpperCase()}`;
+    if (b.halted) return "HALTED — places nothing";
+    if (b.enabled === false) return "PAUSED — no new trades";
+    if (b.holding) return "Holding a position";
+    if (b.armed) return "Order armed";
+    return "Flat";
+  };
 
   const riskPts =
     signal?.fibEntry != null && signal?.stopPrice != null
@@ -70,7 +97,7 @@ export default function Fib5mScreen() {
       refreshControl={
         <RefreshControl
           refreshing={isRefetching}
-          onRefresh={() => { refetch(); hourly.refetch(); }}
+          onRefresh={() => { refetch(); hourly.refetch(); status.refetch(); }}
           tintColor={c.accent}
         />
       }
@@ -93,22 +120,63 @@ export default function Fib5mScreen() {
       ) : (
         <>
           {/* ── Who owns the contract ───────────────────────────────── */}
+          {bothHolding ? (
+            <Card tint={c.red} stripe={c.red} style={{ padding: Spacing.md, marginTop: Spacing.sm }}>
+              <Text style={{ color: c.red, fontSize: 13, fontWeight: "800" }}>
+                ⚠ BOTH BOTS REPORT A POSITION
+              </Text>
+              <Text style={{ color: c.soft, fontSize: 11.5, marginTop: 4, lineHeight: 17 }}>
+                Only one may ever hold this contract — Upstox nets positions. Check the account now and
+                send /halt to both bots.
+              </Text>
+            </Card>
+          ) : null}
+
           <Card style={{ padding: Spacing.md, marginTop: Spacing.sm }}>
-            <Label>Who has priority on this contract</Label>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <Label>Who has priority on this contract</Label>
+              <Badge
+                text={live ? "LIVE BOT STATE" : "FROM SIGNALS"}
+                color={live ? c.green : c.amber}
+                small
+              />
+            </View>
             <View style={{ height: Spacing.xs }} />
             <KV
               k="Hourly bot · senior"
-              v={hourly.data?.signal ? (hourlyArmed ? "Has a live setup" : "Idle") : "No signal"}
+              v={botLine(hourlyBot, hourly.data?.signal ? (hourlyArmed ? "Has a live setup" : "Idle") : "No signal")}
             />
             <KV
               k="5-min bot · junior"
-              v={yielding ? "Stands down" : armed ? "Free to trade" : "Waiting for a setup"}
+              v={botLine(fiveBot, yielding ? "Stands down" : armed ? "Free to trade" : "Waiting for a setup")}
             />
-            <Text style={{ color: c.dim, fontSize: 10, marginTop: Spacing.sm, lineHeight: 15 }}>
-              Derived from the two signals, not from the bot. It also checks the exchange position, the
-              order book and the contract claim on its own machine, so it can stand down for reasons this
-              screen cannot see. Telegram and /status are the authority.
-            </Text>
+            {fiveBot?.holding ? (
+              <KV
+                k="Its open trade"
+                v={`entry ${px(fiveBot.entryPrice)} · stop ${px(fiveBot.stop)} · target ${px(fiveBot.target)}`}
+              />
+            ) : null}
+            <KV
+              k="Contract claim"
+              v={
+                claim
+                  ? `${claim.owner === "5m" ? "the 5-min bot" : "the hourly bot"} ${
+                      claim.holding ? "holds a filled position" : "has an order out"
+                    }`
+                  : live ? "nobody holds it" : null
+              }
+            />
+            {hourlyBot?.stale || fiveBot?.stale ? (
+              <Text style={{ color: c.amber, fontSize: 10, marginTop: Spacing.sm }}>
+                A bot's state file has gone stale during the session — it may be down.
+              </Text>
+            ) : null}
+            {!live ? (
+              <Text style={{ color: c.dim, fontSize: 10, marginTop: Spacing.sm, lineHeight: 15 }}>
+                {status.data?.error ??
+                  "Could not reach the droplet — showing what the two signals imply, not what the bots believe."}
+              </Text>
+            ) : null}
           </Card>
 
           {/* ── State ───────────────────────────────────────────────── */}

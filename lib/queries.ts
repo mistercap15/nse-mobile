@@ -12,6 +12,7 @@ import type {
   BotTokenStatus,
   CryptoFibResponse,
   EarlyEntryResponse,
+  BotStatusResponse,
   FibSignalResponse,
   EntryPricesResponse,
   QuotesResponse,
@@ -56,6 +57,9 @@ export const queryKeys = {
   fibSignal: (underlying: string) => ["fib-signal", underlying] as const,
 
   fib5mSignal: (underlying: string) => ["fib5m-signal", underlying] as const,
+
+
+  botStatus: () => ["bot-status"] as const,
   botToken: ["bot", "token-status"] as const,
   cryptoFibSignal: (symbol: string) => ["crypto-fib-signal", symbol] as const,
 };
@@ -397,6 +401,27 @@ export function useFibSignal(underlying = "NIFTY", enabled = true) {
  * an hour; a one-minute refresh on an hourly signal is generous, on this one it
  * is the minimum that keeps up.
  */
+/**
+ * What the bots on the droplet actually believe — holding, armed, paused,
+ * halted, and who owns the contract claim.
+ *
+ * Never throws: /api/bot/status always answers 200 with `reachable` and a
+ * reason, so a droplet that is rebooting shows as "cannot reach the bots"
+ * rather than an error state. retry is off for the same reason — a failure
+ * here is information, not something to paper over.
+ */
+export function useBotStatus(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.botStatus(),
+    queryFn: () => request<BotStatusResponse>("/api/bot/status", { timeoutMs: 20_000 }),
+    enabled,
+    retry: false,
+    staleTime: 20_000,
+    refetchInterval: 30_000,
+  });
+}
+
+
 export function useFib5mSignal(underlying = "NIFTY", enabled = true) {
   return useQuery({
     queryKey: queryKeys.fib5mSignal(underlying),

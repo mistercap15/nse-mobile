@@ -839,3 +839,41 @@ export interface CryptoFibResponse {
   cached?: boolean;
   error: string | null;
 }
+
+
+/**
+ * What the bots on the droplet actually believe, as served by
+ * /api/bot/status. Distinct from a signal response on purpose: a signal says
+ * what the STRATEGY thinks, this says what the BOT thinks, and on 7 Sep 2026
+ * those disagreed while both bots bracketed the same lots.
+ *
+ * `reachable` is false whenever the droplet could not be reached — the route
+ * always answers 200 with this shape rather than failing, so a screen shows
+ * "cannot reach the bots" instead of an error boundary.
+ */
+export interface BotState {
+  service: string;
+  stateAgeSeconds: number | null;
+  stale: boolean;
+  idle: boolean;
+  enabled: boolean;
+  halted: boolean;
+  holding: boolean;
+  armed: boolean;
+  instrument: string | null;
+  entryPrice: number | null;
+  entryBar: string | null;
+  stop: number | null;
+  target: number | null;
+  barsHeld: number | null;
+  summary: string;
+}
+
+export interface BotStatusResponse {
+  reachable: boolean;
+  at: string | null;
+  marketOpen?: boolean;
+  bots: { hourly?: BotState; fivemin?: BotState; crypto?: BotState } | null;
+  claim: { owner: string; instrument: string | null; holding: boolean; ageSeconds: number | null } | null;
+  error: string | null;
+}
