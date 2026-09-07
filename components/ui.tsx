@@ -497,14 +497,21 @@ export function KV({
   mono?: boolean;
 }) {
   const c = useColors();
+  // FLEX ON BOTH SIDES, OR IT OVERFLOWS. The row is space-between, so without
+  // it a long value ("entry 23884.9 · stop 23857.5 · target 23923.5") simply
+  // runs off the edge of the card instead of wrapping — there is nothing in a
+  // plain row telling a Text it may not exceed its parent. The key shrinks
+  // only after the value has, and the value right-aligns and wraps.
   return (
     <View style={styles.kv}>
-      <Text style={{ color: c.dim, fontSize: 11 }}>{k}</Text>
+      <Text style={{ color: c.dim, fontSize: 11, flexShrink: 1 }}>{k}</Text>
       <Text
         style={{
           color: color ?? c.text,
           fontSize: 12,
           fontWeight: mono ? "700" : "500",
+          flex: 1,
+          textAlign: "right",
         }}
       >
         {v || DASH}
@@ -550,5 +557,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   centered: { alignItems: "center", justifyContent: "center", paddingVertical: 48, paddingHorizontal: Spacing.lg },
-  kv: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 4 },
+  // alignItems flex-start, not center: once a value wraps to two lines, centre
+  // alignment floats the key against the middle of the block and reads as a
+  // mistake. gap keeps the two columns apart when both are near full width.
+  kv: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start",
+        paddingVertical: 4, gap: 12 },
 });

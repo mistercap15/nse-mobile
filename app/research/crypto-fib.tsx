@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { Badge, Card, ErrorState, KV, Label, StatCard, StatRow } from "@/components/ui";
 import { SkeletonCard, SkeletonStatRow } from "@/components/Skeleton";
+import { BotLiveState } from "@/components/BotLiveState";
 import { useCryptoFibSignal } from "@/lib/queries";
 import { DASH, num } from "@/lib/format";
 import { Radius, Spacing, Type, useColors } from "@/lib/theme";
@@ -55,8 +56,13 @@ export default function CryptoFibScreen() {
       contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl }}
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={c.accent} />}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <Label>Delta perpetuals · hourly · 24/7</Label>
+      {/* flexWrap and a shrinkable Label: this row is an uppercase, letter-spaced
+          Label next to a Badge, and at 11px with letterSpacing 1.2 the label
+          alone can exceed a phone's width. Without wrapping, the badge is
+          pushed clean off the card. */}
+      <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: Spacing.xs }}>
+        <Label style={{ flexShrink: 1 }} numberOfLines={1}>Delta perps · hourly</Label>
+        <View style={{ flex: 1, minWidth: 0 }} />
         <Badge text={testnet ? "TESTNET" : "MAINNET · REAL"} color={testnet ? c.amber : c.red} small />
       </View>
 
@@ -87,6 +93,11 @@ export default function CryptoFibScreen() {
         </View>
       ) : (
         <>
+          {/* The Delta bot's own state. It shares no contract with the Nifty
+              bots, so there is no priority pair here — just whether it is up,
+              paused, halted or holding. */}
+          <BotLiveState focus="crypto" />
+
           <Card tint={tint} stripe={tint} style={{ padding: Spacing.md, marginTop: Spacing.sm }}>
             <View style={{ flexDirection: "row", alignItems: "flex-start", gap: Spacing.sm }}>
               <View style={{ flex: 1, minWidth: 0 }}>

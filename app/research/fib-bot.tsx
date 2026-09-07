@@ -4,6 +4,7 @@ import { ConnectionBanner } from "@/components/ConnectionBanner";
 import { Badge, Button, Card, ErrorState, KV, Label, StatCard, StatRow } from "@/components/ui";
 import { SkeletonCard, SkeletonStatRow } from "@/components/Skeleton";
 import { ApiError } from "@/lib/client";
+import { BotLiveState } from "@/components/BotLiveState";
 import { useBotSync, useBotTokenStatus, useFibSignal, useUpstoxStatus } from "@/lib/queries";
 import { useUpstoxConnect } from "@/lib/useUpstoxConnect";
 import { DASH, num } from "@/lib/format";
@@ -98,8 +99,13 @@ function BotTokenCard() {
 
   return (
     <Card style={{ padding: Spacing.md, marginTop: Spacing.sm }}>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <Label>Bot token</Label>
+      {/* flexWrap and a shrinkable Label: this row is an uppercase, letter-spaced
+          Label next to a Badge, and at 11px with letterSpacing 1.2 the label
+          alone can exceed a phone's width. Without wrapping, the badge is
+          pushed clean off the card. */}
+      <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: Spacing.xs }}>
+        <Label style={{ flexShrink: 1 }} numberOfLines={1}>Bot token</Label>
+        <View style={{ flex: 1, minWidth: 0 }} />
         {synced ? (
           <Badge text="SYNCED" color={c.green} small />
         ) : bot?.expired ? (
@@ -199,6 +205,11 @@ export default function FibBotScreen() {
         </View>
       ) : (
         <>
+          {/* What the bot on the droplet actually believes. Above the contract
+              strip on purpose: "is it holding, is it paused, is it even up" is
+              the question you open this screen with. */}
+          <BotLiveState focus="hourly" />
+
           {/* ── Contract strip ─────────────────────────────────────────── */}
           <Card style={{ padding: Spacing.md, marginTop: Spacing.md }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.sm }}>
