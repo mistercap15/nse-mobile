@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  AccessibilityInfo,
   StyleSheet,
   View,
   useWindowDimensions,
@@ -15,7 +14,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-import { Radius, Spacing, TAB_BAR_CLEARANCE, hairline, useColors, useIsDark } from "@/lib/theme";
+import { Radius, Spacing, TAB_BAR_CLEARANCE, hairline, useColors, useIsDark, useReducedMotion } from "@/lib/theme";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Loading placeholders with a shimmer sweep.
@@ -34,20 +33,6 @@ const ROW_H = 62;
 const ROW_GAP = Spacing.sm;
 const STATROW_H = 86;
 const CHART_H = 196;
-
-function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    AccessibilityInfo.isReduceMotionEnabled().then((v) => alive && setReduced(v));
-    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduced);
-    return () => {
-      alive = false;
-      sub.remove();
-    };
-  }, []);
-  return reduced;
-}
 
 /**
  * How many rows it takes to reach the bottom of the screen, given what's

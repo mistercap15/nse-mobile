@@ -2,6 +2,7 @@ import React from "react";
 import { Text, View } from "react-native";
 import { Spacing, useColors } from "@/lib/theme";
 import type { MarketRegimeResponse, Regime, Sentiment } from "@/lib/types";
+import { MoodGauge } from "./MoodGauge";
 import { Card, Label } from "./ui";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -35,21 +36,21 @@ export function RegimeBanner({ regime }: { regime?: Regime }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Market Mood — the Nifty's own price versus its trailing high.
+// Market Mood — the Nifty's own price versus its trailing high, on a dial.
 //
 // READ-ONLY, AND THE CARD SAYS SO. No pick is filtered, re-sized or re-ordered
-// by this; the footer states that in words because a red badge above a list of
-// trades reads as a verdict otherwise.
+// by this; the footer states that in words because a needle sitting in a red
+// zone above a list of trades reads as an instruction otherwise.
 //
 // It is the THIRD context strip on this screen. RegimeBanner is breadth, the
 // SentimentPanel is a blended live score, and this is index price versus its own
 // drawdown — different measurements that can legitimately disagree, which is why
 // the heading names its source.
 //
-// LAYOUT NOTE: everything wraps and nothing carries a fixed width. The header
-// row here is label + price + two MA pills; on a 360px screen that does not fit
-// on one line, and the previous overflow bug on this app came from exactly this
-// shape. flexWrap on the row plus flexShrink on the text is what keeps it in.
+// The dial shows the DRAWDOWN, not the index level, because the drawdown is the
+// thing with a scale and zones; the Nifty level itself is printed as plain text
+// beside it. Layout stays wrap-first with no fixed widths — the earlier overflow
+// bug on this app came from a header row that assumed it fit on one line.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function MarketMoodCard({ mood }: { mood?: MarketRegimeResponse }) {
@@ -72,8 +73,8 @@ export function MarketMoodCard({ mood }: { mood?: MarketRegimeResponse }) {
         borderWidth: 1,
         borderColor: `${maTint(above)}59`,
         borderRadius: 6,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
+        paddingHorizontal: 7,
+        paddingVertical: 2.5,
       }}
     >
       <Text style={{ color: maTint(above), fontSize: 10 }}>
@@ -95,23 +96,34 @@ export function MarketMoodCard({ mood }: { mood?: MarketRegimeResponse }) {
         </Text>
       </View>
 
+      <View style={{ marginTop: Spacing.sm }}>
+        <MoodGauge
+          pctOffHigh={mood.pct_off_high}
+          label={label}
+          caption={known ? `off ${mood.window_sessions}-session high` : undefined}
+        />
+      </View>
+
+      {/* The level and the high, under the dial. The gauge answers "how far
+          down"; these answer "down from what", which the arc cannot show. */}
       <View
         style={{
           flexDirection: "row",
           flexWrap: "wrap",
           alignItems: "center",
+          justifyContent: "center",
           gap: 8,
-          marginTop: 8,
+          marginTop: 2,
         }}
       >
-        <Text style={{ color: c.text, fontSize: 18, fontWeight: "800" }}>
+        <Text style={{ color: c.text, fontSize: 13, fontWeight: "700" }}>
           {known && mood.nifty_price !== null
             ? mood.nifty_price.toLocaleString("en-IN", { maximumFractionDigits: 0 })
             : "—"}
         </Text>
-        {known && mood.pct_off_high !== null ? (
+        {known && mood.trailing_high !== null ? (
           <Text style={{ color: c.dim, fontSize: 11, flexShrink: 1 }}>
-            {mood.pct_off_high.toFixed(1)}% off {mood.window_sessions}-session high
+            high {mood.trailing_high.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
           </Text>
         ) : null}
         <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
@@ -121,11 +133,11 @@ export function MarketMoodCard({ mood }: { mood?: MarketRegimeResponse }) {
       </View>
 
       {known && mood.historical_context ? (
-        <Text style={{ color: c.soft, fontSize: 11, marginTop: 8, lineHeight: 16 }}>
+        <Text style={{ color: c.soft, fontSize: 11, marginTop: 10, lineHeight: 16 }}>
           {mood.historical_context}
         </Text>
       ) : (
-        <Text style={{ color: c.dim, fontSize: 11, marginTop: 8, lineHeight: 16 }}>
+        <Text style={{ color: c.dim, fontSize: 11, marginTop: 10, lineHeight: 16 }}>
           {mood.error ?? "Nifty data unavailable."}
         </Text>
       )}

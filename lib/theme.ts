@@ -1,4 +1,5 @@
-import { useColorScheme, type TextStyle } from "react-native";
+import { useEffect, useState } from "react";
+import { AccessibilityInfo, useColorScheme, type TextStyle } from "react-native";
 import { useAppStore } from "./store";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -82,6 +83,29 @@ export function useIsDark(): boolean {
 
 export function useColors(): AppColors {
   return useIsDark() ? DarkColors : LightColors;
+}
+
+/**
+ * The OS "reduce motion" switch. Anything that moves on its own — the
+ * skeleton shimmer, the mood gauge's needle sweep — must consult this and
+ * jump straight to its final state instead of animating.
+ *
+ * Lives here rather than in one component because it now has two callers and
+ * an accessibility hook that exists in two copies is one that gets fixed in
+ * one of them.
+ */
+export function useReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((v) => alive && setReduced(v));
+    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduced);
+    return () => {
+      alive = false;
+      sub.remove();
+    };
+  }, []);
+  return reduced;
 }
 
 export const Spacing = { xs: 4, sm: 8, md: 14, lg: 20, xl: 28, xxl: 40 };

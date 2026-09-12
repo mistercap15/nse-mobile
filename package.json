@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
+    "test": "node scripts/test-gauge.mjs",
     "build:apk": "eas build --platform android --profile preview",
     "build:prod": "eas build --platform android --profile production",
     "update": "eas update --branch preview",
