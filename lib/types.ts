@@ -877,3 +877,29 @@ export interface BotStatusResponse {
   claim: { owner: string; instrument: string | null; holding: boolean; ageSeconds: number | null } | null;
   error: string | null;
 }
+
+// ── Market Mood (/api/market-regime) ────────────────────────────────────────
+// Where the Nifty sits against its own trailing high. Display-only context for
+// the seasonal picks — nothing on either client sizes, sorts or gates off it.
+//
+// EVERY FIELD IS NULLABLE ON PURPOSE. The route answers 200 even when Upstox is
+// down, with regime_label "Unknown" and the rest null, so the card degrades to
+// dashes instead of the screen erroring. `above_50dma: null` means "not enough
+// history to compute one" — a different statement from `false`, and the card
+// paints it grey rather than red.
+export interface MarketRegimeResponse {
+  nifty_price: number | null;
+  trailing_high: number | null;
+  pct_off_high: number | null;
+  above_50dma: boolean | null;
+  above_200dma: boolean | null;
+  sma50: number | null;
+  sma200: number | null;
+  regime_label: "Healthy" | "Caution" | "Correction" | "Unknown";
+  historical_context: string | null;
+  caveat: string;
+  window_sessions: number;
+  asOf: string | null;
+  source?: string | null;
+  error: string | null;
+}

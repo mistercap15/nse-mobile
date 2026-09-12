@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ConnectionBanner } from "@/components/ConnectionBanner";
-import { RegimeBanner, SentimentPanel } from "@/components/Banners";
+import { MarketMoodCard, RegimeBanner, SentimentPanel } from "@/components/Banners";
 import { MonthPicker } from "@/components/MonthPicker";
 import { StockRow } from "@/components/StockRow";
 import {
@@ -15,7 +15,7 @@ import {
   StatCard,
   StatRow,
 } from "@/components/ui";
-import { useEarlyEntry, useRankings } from "@/lib/queries";
+import { useEarlyEntry, useMarketRegime, useRankings } from "@/lib/queries";
 import { useAppStore } from "@/lib/store";
 import { MONTH_FULL, num, pct } from "@/lib/format";
 import { Spacing, TAB_BAR_CLEARANCE, deltaColor, useColors } from "@/lib/theme";
@@ -44,6 +44,10 @@ export default function RankingsScreen() {
   // absent and the panel would never appear. Fall back to the Early Entry
   // query's cache: enabled:false means we read what's already there and never
   // trigger that expensive scan ourselves.
+  // Market Mood is display-only context, on its own query so a slow or dead
+  // Upstox never delays the rankings themselves.
+  const mood = useMarketRegime();
+
   const cachedEarly = useEarlyEntry(false);
   const sentiment = data?.sentiment ?? cachedEarly.data?.sentiment;
 
@@ -128,6 +132,7 @@ export default function RankingsScreen() {
             ) : null}
 
             <View style={{ marginTop: Spacing.md }}>
+              <MarketMoodCard mood={mood.data} />
               <RegimeBanner regime={data?.regime} />
               <SentimentPanel sentiment={sentiment} />
             </View>

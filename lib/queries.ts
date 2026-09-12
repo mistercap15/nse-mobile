@@ -13,6 +13,7 @@ import type {
   CryptoFibResponse,
   EarlyEntryResponse,
   BotStatusResponse,
+  MarketRegimeResponse,
   FibSignalResponse,
   EntryPricesResponse,
   QuotesResponse,
@@ -62,6 +63,7 @@ export const queryKeys = {
   botStatus: () => ["bot-status"] as const,
   botToken: ["bot", "token-status"] as const,
   cryptoFibSignal: (symbol: string) => ["crypto-fib-signal", symbol] as const,
+  marketRegime: ["market-regime"] as const,
 };
 
 // ── Auth ────────────────────────────────────────────────────────────────────
@@ -475,5 +477,29 @@ export function useBotSync() {
       qc.invalidateQueries({ queryKey: queryKeys.upstoxStatus });
       qc.invalidateQueries({ queryKey: queryKeys.botToken });
     },
+  });
+}
+
+// ── Market Mood ─────────────────────────────────────────────────────────────
+
+/**
+ * Where the Nifty sits versus its own trailing high — context for reading the
+ * seasonal picks, nothing more. It does not feed sizing, conviction or the
+ * ranking order on either client.
+ *
+ * Never throws: /api/market-regime answers 200 even when Upstox is unreachable,
+ * carrying regime_label "Unknown" plus an `error` string. retry is off for the
+ * same reason as useBotStatus — a failure here is information, not something to
+ * paper over with three more round trips on a card that is pure decoration.
+ *
+ * Daily closes move once a day, so an hour of staleness is free.
+ */
+export function useMarketRegime(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.marketRegime,
+    queryFn: () => request<MarketRegimeResponse>("/api/market-regime"),
+    enabled,
+    retry: false,
+    staleTime: 60 * MINUTE,
   });
 }

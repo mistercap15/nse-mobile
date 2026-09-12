@@ -1,7 +1,7 @@
 import React from "react";
 import { Text, View } from "react-native";
 import { Spacing, useColors } from "@/lib/theme";
-import type { Regime, Sentiment } from "@/lib/types";
+import type { MarketRegimeResponse, Regime, Sentiment } from "@/lib/types";
 import { Card, Label } from "./ui";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -30,6 +30,109 @@ export function RegimeBanner({ regime }: { regime?: Regime }) {
           {regime.note}
         </Text>
       ) : null}
+    </Card>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Market Mood — the Nifty's own price versus its trailing high.
+//
+// READ-ONLY, AND THE CARD SAYS SO. No pick is filtered, re-sized or re-ordered
+// by this; the footer states that in words because a red badge above a list of
+// trades reads as a verdict otherwise.
+//
+// It is the THIRD context strip on this screen. RegimeBanner is breadth, the
+// SentimentPanel is a blended live score, and this is index price versus its own
+// drawdown — different measurements that can legitimately disagree, which is why
+// the heading names its source.
+//
+// LAYOUT NOTE: everything wraps and nothing carries a fixed width. The header
+// row here is label + price + two MA pills; on a 360px screen that does not fit
+// on one line, and the previous overflow bug on this app came from exactly this
+// shape. flexWrap on the row plus flexShrink on the text is what keeps it in.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function MarketMoodCard({ mood }: { mood?: MarketRegimeResponse }) {
+  const c = useColors();
+  if (!mood) return null;
+
+  const label = mood.regime_label ?? "Unknown";
+  const known = label !== "Unknown";
+  const tint =
+    label === "Healthy" ? c.green : label === "Caution" ? c.amber : label === "Correction" ? c.red : c.dim;
+
+  // null = "not enough history for this MA", which must not be painted as a
+  // bearish `false`.
+  const maTint = (above: boolean | null) => (above === null ? c.dim : above ? c.green : c.red);
+  const maWord = (above: boolean | null) => (above === null ? "n/a" : above ? "above" : "below");
+
+  const Pill = ({ text, above }: { text: string; above: boolean | null }) => (
+    <View
+      style={{
+        borderWidth: 1,
+        borderColor: `${maTint(above)}59`,
+        borderRadius: 6,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+      }}
+    >
+      <Text style={{ color: maTint(above), fontSize: 10 }}>
+        {maWord(above)} {text}
+      </Text>
+    </View>
+  );
+
+  return (
+    <Card
+      stripe={tint}
+      tint={known ? tint : undefined}
+      style={{ padding: Spacing.md, marginBottom: Spacing.sm, paddingLeft: Spacing.md + 4 }}
+    >
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <Label>Market mood · Nifty price</Label>
+        <Text style={{ color: tint, fontWeight: "800", fontSize: 12, letterSpacing: 0.5 }}>
+          {label.toUpperCase()}
+        </Text>
+      </View>
+
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 8,
+          marginTop: 8,
+        }}
+      >
+        <Text style={{ color: c.text, fontSize: 18, fontWeight: "800" }}>
+          {known && mood.nifty_price !== null
+            ? mood.nifty_price.toLocaleString("en-IN", { maximumFractionDigits: 0 })
+            : "—"}
+        </Text>
+        {known && mood.pct_off_high !== null ? (
+          <Text style={{ color: c.dim, fontSize: 11, flexShrink: 1 }}>
+            {mood.pct_off_high.toFixed(1)}% off {mood.window_sessions}-session high
+          </Text>
+        ) : null}
+        <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
+          <Pill text="50 DMA" above={mood.above_50dma} />
+          <Pill text="200 DMA" above={mood.above_200dma} />
+        </View>
+      </View>
+
+      {known && mood.historical_context ? (
+        <Text style={{ color: c.soft, fontSize: 11, marginTop: 8, lineHeight: 16 }}>
+          {mood.historical_context}
+        </Text>
+      ) : (
+        <Text style={{ color: c.dim, fontSize: 11, marginTop: 8, lineHeight: 16 }}>
+          {mood.error ?? "Nifty data unavailable."}
+        </Text>
+      )}
+
+      <Text style={{ color: c.dim, fontSize: 10, marginTop: 6, lineHeight: 14 }}>
+        {known ? `${mood.caveat} ` : ""}Context only — no pick below is filtered or re-sized by it.
+      </Text>
     </Card>
   );
 }
