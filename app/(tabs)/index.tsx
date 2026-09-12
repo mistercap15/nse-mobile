@@ -4,11 +4,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { ConnectionBanner } from "@/components/ConnectionBanner";
-import { RegimeBanner } from "@/components/Banners";
+import { MarketMoodCard, RegimeBanner } from "@/components/Banners";
 import { Hero } from "@/components/Hero";
 import { StockRow } from "@/components/StockRow";
 import { Card, ErrorState, SectionHeader, SkeletonScreen } from "@/components/ui";
-import { useRankings, useSession } from "@/lib/queries";
+import { useMarketRegime, useRankings, useSession } from "@/lib/queries";
 import { useAppStore } from "@/lib/store";
 import { MONTH_FULL, currentMonthIST, num, pct, untilExpiry } from "@/lib/format";
 import { Radius, Spacing, TAB_BAR_CLEARANCE, deltaColor, useColors } from "@/lib/theme";
@@ -37,6 +37,10 @@ export default function HomeScreen() {
   const session = useSession();
 
   const { data, isLoading, isRefetching, error, refetch } = useRankings(month, "ALL", 50);
+
+  // Display-only context, on its own query so a slow or dead Upstox never holds
+  // up the overview above it.
+  const mood = useMarketRegime();
 
   const top = data?.top_stocks ?? [];
   const avgWR = top.length
@@ -187,6 +191,12 @@ export default function HomeScreen() {
                 </View>
               </>
             ) : null}
+
+            {/* Market Mood — last, deliberately. It is context for reading
+                everything above it, not a headline, and it is the one block on
+                this screen that needs Upstox to be reachable. */}
+            <SectionHeader title="Market mood" icon="speedometer" tint={c.accent} />
+            <MarketMoodCard mood={mood.data} />
 
             {session.data?.expiresAt ? (
               <Text style={{ color: c.dim, fontSize: 10, marginTop: Spacing.xl, textAlign: "center" }}>

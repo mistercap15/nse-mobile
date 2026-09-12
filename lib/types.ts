@@ -895,7 +895,7 @@ export interface MarketRegimeResponse {
   above_200dma: boolean | null;
   sma50: number | null;
   sma200: number | null;
-  regime_label: "Healthy" | "Caution" | "Correction" | "Unknown";
+  regime_label: "Extreme Fear" | "Fear" | "Greed" | "Extreme Greed" | "Unknown";
   historical_context: string | null;
   caveat: string;
   window_sessions: number;

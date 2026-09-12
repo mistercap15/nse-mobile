@@ -1,8 +1,8 @@
 import React from "react";
 import { Text, View } from "react-native";
-import { Spacing, useColors } from "@/lib/theme";
+import { Spacing, useColors, useIsDark } from "@/lib/theme";
 import type { MarketRegimeResponse, Regime, Sentiment } from "@/lib/types";
-import { MoodGauge } from "./MoodGauge";
+import { MoodGauge, moodTint } from "./MoodGauge";
 import { Card, Label } from "./ui";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,11 +36,16 @@ export function RegimeBanner({ regime }: { regime?: Regime }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Market Mood — the Nifty's own price versus its trailing high, on a dial.
+// Market Mood — Extreme Fear ‥ Extreme Greed, from the Nifty's distance below
+// its own trailing high, on a dial.
 //
 // READ-ONLY, AND THE CARD SAYS SO. No pick is filtered, re-sized or re-ordered
 // by this; the footer states that in words because a needle sitting in a red
-// zone above a list of trades reads as an instruction otherwise.
+// zone labelled "Extreme Fear" reads as an instruction otherwise — and for this
+// system it would be the WRONG one. The historical line is the counterweight:
+// longs opened near the high did better in the sample than ones opened deep in
+// a drawdown, which is the opposite of what the vocabulary suggests. It is not
+// optional furniture.
 //
 // It is the THIRD context strip on this screen. RegimeBanner is breadth, the
 // SentimentPanel is a blended live score, and this is index price versus its own
@@ -55,12 +60,14 @@ export function RegimeBanner({ regime }: { regime?: Regime }) {
 
 export function MarketMoodCard({ mood }: { mood?: MarketRegimeResponse }) {
   const c = useColors();
+  const isDark = useIsDark();
   if (!mood) return null;
 
   const label = mood.regime_label ?? "Unknown";
   const known = label !== "Unknown";
-  const tint =
-    label === "Healthy" ? c.green : label === "Caution" ? c.amber : label === "Correction" ? c.red : c.dim;
+  // One source for the colour, shared with the dial — a badge that disagrees
+  // with the band the needle is sitting in is worse than no badge.
+  const tint = moodTint(label, c, isDark);
 
   // null = "not enough history for this MA", which must not be painted as a
   // bearish `false`.

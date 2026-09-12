@@ -10,48 +10,69 @@ import Animated, {
 import { useColors, useIsDark, useReducedMotion } from "@/lib/theme";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// The Market Mood dial — how far the Nifty has fallen from its own trailing
-// high, as a needle on a three-zone arc.
+// The Market Mood dial — Extreme Fear ‥ Extreme Greed, from how far the Nifty
+// has fallen below its own trailing high.
 //
-// THE SCALE IS PIECEWISE, AND THE TICK LABELS SAY SO. Each regime owns exactly
-// one third of the arc: 0-5% Healthy, 5-10% Caution, 10-20%+ Correction. A
-// straight linear 0→20 scale would give Healthy a quarter of the dial and paint
-// half of it red, which both overstates the alarm and crushes the 5% boundary —
-// the edge a reader actually cares about — into a sliver. Equal thirds put both
-// boundaries at the two obvious points on the dial, and the printed ticks (0 /
-// 5 / 10 / 20+) keep the compression visible instead of hidden. The honest
-// number is printed in full underneath regardless; the arc is the glance.
+// WHAT THE WORDS MEAN HERE. "Extreme Greed" is one specific, checkable thing:
+// the Nifty is within 2% of its own 252-session closing high. It is a name for
+// a distance, not a reading of the market's mood — a real fear/greed index
+// folds in volatility, breadth, options positioning and safe-haven flows, and
+// this folds in none of them.
 //
-// Beyond 20% the needle PINS at the right stop rather than running off. A 25%
-// and a 40% drawdown are the same message at this resolution, and a dial that
-// silently rescales its own end stop is a dial you cannot read twice.
+// FEAR IS ON THE LEFT AND RED, GREED ON THE RIGHT AND GREEN, which is the usual
+// convention — but on this dial the colours are the EMOTION, not a verdict. For
+// this system the 56-month sample says seasonal longs opened in Extreme Greed
+// did best and ones opened in Extreme Fear did worst, so the green end is not a
+// warning and the red end is not an invitation. The historical line under the
+// dial carries that, which is exactly why it is not optional.
 //
-// Geometry is hand-drawn for the same reason as charts.tsx: this is ~60 lines
-// of trigonometry and a gauge library would cost a dependency and the palette.
+// THE SCALE IS PIECEWISE AND THE TICKS SAY SO. Each band owns a quarter of the
+// arc. A straight linear scale would crush the 2% and 5% edges — the ones worth
+// reading — into slivers and hand half the dial to a drawdown depth the market
+// reaches once a decade. The printed ticks (20+ / 10 / 5 / 2 / 0) keep the
+// compression visible, and the exact number sits under the needle regardless.
+//
+// Past 20% off the high the needle PINS at the left stop rather than running
+// off. A 25% and a 40% drawdown are the same message at this resolution, and a
+// dial that silently rescales its own end stop is one you cannot read twice.
+//
+// Geometry is hand-drawn for the same reason as charts.tsx: this is ~70 lines
+// of trigonometry, and a gauge library would cost a dependency and the palette.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Drawdown at the right-hand stop. Past this the needle pins. */
+/** Drawdown at the left-hand stop. Past this the needle pins. */
 const FULL_SCALE = 20;
 
-/** Zone edges, in percent off the high — must match THRESHOLDS in the
- *  dashboard's app/lib/marketRegime.js. They are duplicated rather than fetched
- *  because they are drawing constants here, not a decision: the label on the
- *  payload is always the server's, never re-derived from these. */
-const HEALTHY_MAX = 5;
-const CAUTION_MAX = 10;
+/** Band edges in percent off the high — these MUST match THRESHOLDS in the
+ *  dashboard's app/lib/marketRegime.js. They are duplicated because they are
+ *  drawing constants here, not a decision: the label shown is always the one
+ *  the server sent, never re-derived from these. scripts/test-gauge.mjs asserts
+ *  the numbers still agree. */
+const T_EXTREME_GREED = 2;
+const T_GREED = 5;
+const T_FEAR = 10;
+
+/** Left→right order of the bands, one quarter of the arc each. */
+export const BANDS = ["Extreme Fear", "Fear", "Greed", "Extreme Greed"] as const;
 
 /**
- * Drawdown → position along the arc, 0 (left, at the high) to 1 (right, pinned).
- * Piecewise so each zone gets a third — see the note above.
+ * Drawdown → position along the arc: 0 is the left stop (deepest drawdown,
+ * Extreme Fear) and 1 the right (at the high, Extreme Greed). Piecewise so each
+ * band gets a quarter — see the note above.
+ *
+ * Junk parks the needle at the CENTRE, not at an end. 0 is now the Extreme Fear
+ * stop, and a missing number that pins the needle to a panic reading is the
+ * worst failure this component could have; the middle says nothing.
  */
 export function gaugePosition(pctOffHigh: number | null | undefined): number {
-  if (!Number.isFinite(pctOffHigh as number)) return 0;
+  if (!Number.isFinite(pctOffHigh as number)) return 0.5;
   const p = pctOffHigh as number;
-  if (p <= 0) return 0;
-  if (p <= HEALTHY_MAX) return p / HEALTHY_MAX / 3;
-  if (p <= CAUTION_MAX) return 1 / 3 + (p - HEALTHY_MAX) / (CAUTION_MAX - HEALTHY_MAX) / 3;
-  if (p <= FULL_SCALE) return 2 / 3 + (p - CAUTION_MAX) / (FULL_SCALE - CAUTION_MAX) / 3;
-  return 1;
+  if (p <= 0) return 1;
+  if (p < T_EXTREME_GREED) return 0.75 + ((T_EXTREME_GREED - p) / T_EXTREME_GREED) * 0.25;
+  if (p < T_GREED) return 0.5 + ((T_GREED - p) / (T_GREED - T_EXTREME_GREED)) * 0.25;
+  if (p <= T_FEAR) return 0.25 + ((T_FEAR - p) / (T_FEAR - T_GREED)) * 0.25;
+  if (p <= FULL_SCALE) return ((FULL_SCALE - p) / (FULL_SCALE - T_FEAR)) * 0.25;
+  return 0;
 }
 
 /** Point on the dial at arc position t (0 = left, 1 = right). */
@@ -60,9 +81,8 @@ function at(cx: number, cy: number, r: number, t: number): [number, number] {
   return [cx + r * Math.cos(theta), cy - r * Math.sin(theta)];
 }
 
-/** Arc path between two positions. Every segment is 60°, so large-arc is
- *  always 0; sweep is 1 because left→top→right is clockwise with y pointing
- *  down. */
+/** Arc path between two positions. Every band is 45°, so large-arc is always 0;
+ *  sweep is 1 because left→top→right is clockwise with y pointing down. */
 function arc(cx: number, cy: number, r: number, t0: number, t1: number): string {
   const [x0, y0] = at(cx, cy, r, t0);
   const [x1, y1] = at(cx, cy, r, t1);
@@ -70,11 +90,37 @@ function arc(cx: number, cy: number, r: number, t0: number, t1: number): string 
 }
 
 const TICKS: { t: number; text: string }[] = [
-  { t: 0, text: "0%" },
-  { t: 1 / 3, text: `${HEALTHY_MAX}%` },
-  { t: 2 / 3, text: `${CAUTION_MAX}%` },
-  { t: 1, text: `${FULL_SCALE}%+` },
+  { t: 0, text: `${FULL_SCALE}%+` },
+  { t: 0.25, text: `${T_FEAR}%` },
+  { t: 0.5, text: `${T_GREED}%` },
+  { t: 0.75, text: `${T_EXTREME_GREED}%` },
+  { t: 1, text: "0%" },
 ];
+
+/** Readout metrics. Fixed line heights, not platform defaults — the readout is
+ *  absolutely positioned, so if its real height exceeds what the container
+ *  reserves it silently draws on top of whatever the card puts underneath. That
+ *  is exactly the overlap this file shipped with once. */
+const READOUT_TOP = 6;
+const NUM_LH = 32;
+const CAP_LH = 12;
+const READOUT_H = READOUT_TOP + NUM_LH + 1 + CAP_LH + 4;
+
+/** The vivid end of the green ramp, for Extreme Greed. The palette has one
+ *  green, and two adjacent bands in the identical colour read as a bug. */
+function brightGreen(isDark: boolean): string {
+  return isDark ? "#4ADE80" : "#16A34A";
+}
+
+/** Colour for a band or for the current label. Exported so the card's badge,
+ *  needle and number cannot drift apart from the arc. */
+export function moodTint(label: string, c: ReturnType<typeof useColors>, isDark: boolean): string {
+  if (label === "Extreme Fear") return c.red;
+  if (label === "Fear") return c.amber;
+  if (label === "Greed") return c.green;
+  if (label === "Extreme Greed") return brightGreen(isDark);
+  return c.dim;
+}
 
 export function MoodGauge({
   pctOffHigh,
@@ -97,58 +143,49 @@ export function MoodGauge({
   const [w, setW] = useState(0);
 
   const known = label !== "Unknown" && Number.isFinite(pctOffHigh as number);
-  const target = known ? gaugePosition(pctOffHigh) : 0;
+  const target = known ? gaugePosition(pctOffHigh) : 0.5;
 
-  // The needle sweeps up from zero on mount. `reduced` respects the OS
+  // The needle sweeps in from the centre on mount. `reduced` respects the OS
   // reduce-motion switch by jumping straight to the value.
-  const sweep = useSharedValue(0);
+  const sweep = useSharedValue(0.5);
   useEffect(() => {
-    if (!known) {
-      sweep.value = 0;
-      return;
-    }
     sweep.value = reduced
       ? target
       : withTiming(target, { duration: 900, easing: Easing.out(Easing.cubic) });
-  }, [known, target, reduced, sweep]);
+  }, [target, reduced, sweep]);
 
-  const tint =
-    label === "Healthy" ? c.green
-      : label === "Caution" ? c.amber
-        : label === "Correction" ? c.red
-          : c.dim;
+  const tint = moodTint(label, c, isDark);
 
   // ── geometry ──────────────────────────────────────────────────────────────
   // THE READOUT SITS BELOW THE HUB, NOT IN THE WELL OF THE ARC. Centred in the
-  // well it looks right at 0% and at 20%, and the needle draws a line straight
+  // well it looks right at the two ends and the needle draws a line straight
   // through the digits everywhere in between — the needle sweeps the whole well
-  // by definition, so nothing can live there. Below the pivot is the only
-  // region of a semicircular dial the needle never visits.
+  // by definition, so nothing can live there. Below the pivot is the only part
+  // of a semicircular dial the needle never visits.
   const SW = Math.max(10, Math.min(16, w * 0.048));       // arc thickness
   // Clamped at both ends: capped so the dial does not become a billboard on a
-  // tablet, floored so a freak narrow layout cannot drive the radius — and
-  // with it the needle length below — negative, which renders a View with a
-  // negative width and throws on Android.
+  // tablet, floored so a freak narrow layout cannot drive the radius — and with
+  // it the needle length — negative, which renders a View with a negative width
+  // and throws on Android.
   const r = Math.max(46, Math.min((w - SW) / 2 - 6, 128));
   const cx = w / 2;
   const cy = r + SW / 2 + 4;                               // hub / baseline
-  const READOUT_H = 46;                                    // number + caption
   const height = cy + READOUT_H;
   // Stops short of the tick labels, which live just inside the rim. A needle
   // long enough to touch them looks like it is pointing AT a number it is not.
   const needleLen = Math.max(12, r - SW - 26);
   // Half a stroke width, as a fraction of the arc — the separation that keeps
-  // one zone's stroke out of the next one.
+  // one band's stroke out of the next one.
   const GAP = SW / 2 / (Math.PI * r);
 
   const needleStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${sweep.value * 180}deg` }],
   }));
 
-  // Only the zone we are actually in is lit; the other two stay as faint
-  // context. A dial with three saturated bands makes the reader hunt for the
+  // Only the band we are actually in is lit; the other three stay as faint
+  // context. A dial with four saturated bands makes the reader hunt for the
   // needle to find out which one counts.
-  const zoneOpacity = (zone: string) => (!known ? 0.16 : label === zone ? 1 : 0.18);
+  const bandOpacity = (band: string) => (!known ? 0.16 : label === band ? 1 : 0.18);
 
   return (
     <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ width: "100%" }}>
@@ -156,52 +193,50 @@ export function MoodGauge({
         <View style={{ height, width: w }}>
           <Svg width={w} height={height}>
             <Defs>
-              <LinearGradient id="moodGreen" x1="0" y1="1" x2="1" y2="0">
-                <Stop offset="0" stopColor={c.green} stopOpacity="0.75" />
-                <Stop offset="1" stopColor={c.green} stopOpacity="1" />
+              <LinearGradient id="moodEF" x1="0" y1="1" x2="1" y2="0">
+                <Stop offset="0" stopColor={c.red} stopOpacity="0.8" />
+                <Stop offset="1" stopColor={c.red} stopOpacity="1" />
               </LinearGradient>
-              <LinearGradient id="moodAmber" x1="0" y1="0" x2="1" y2="0">
+              <LinearGradient id="moodF" x1="0" y1="1" x2="1" y2="0">
                 <Stop offset="0" stopColor={c.amber} stopOpacity="0.85" />
                 <Stop offset="1" stopColor={c.amber} stopOpacity="1" />
               </LinearGradient>
-              <LinearGradient id="moodRed" x1="0" y1="0" x2="1" y2="1">
-                <Stop offset="0" stopColor={c.red} stopOpacity="1" />
-                <Stop offset="1" stopColor={c.red} stopOpacity="0.75" />
+              <LinearGradient id="moodG" x1="0" y1="0" x2="1" y2="1">
+                <Stop offset="0" stopColor={c.green} stopOpacity="1" />
+                <Stop offset="1" stopColor={c.green} stopOpacity="0.85" />
+              </LinearGradient>
+              <LinearGradient id="moodEG" x1="0" y1="0" x2="1" y2="1">
+                <Stop offset="0" stopColor={brightGreen(isDark)} stopOpacity="1" />
+                <Stop offset="1" stopColor={brightGreen(isDark)} stopOpacity="0.8" />
               </LinearGradient>
             </Defs>
 
             {/* Unlit track underneath, so the dial still reads as a dial when
-                every zone is dimmed — which is the Unknown state. */}
-            <Path
-              d={arc(cx, cy, r, 0, 1)}
-              stroke={isDark ? c.card : c.border}
-              strokeWidth={SW}
-              fill="none"
-            />
+                every band is dimmed — which is the Unknown state. */}
+            <Path d={arc(cx, cy, r, 0, 1)} stroke={isDark ? c.card : c.border}
+              strokeWidth={SW} fill="none" />
 
             {/* BUTT CAPS, NOT ROUND, AND A GAP AT EACH INTERNAL BOUNDARY.
                 A round cap extends half a stroke width along the path, so a
-                round-capped red segment starting at 2/3 would bleed ~7px
-                backwards into the amber zone and a round-capped green would
-                bleed forwards out of it — the needle would then sit on a colour
-                that is not its own zone near a boundary, which is the one thing
-                this dial exists to get right. Round caps at the outer ends have
-                the same problem vertically: the tangent at t=0 and t=1 points
-                straight down, so the cap would hang below the hub line and clip
-                the card. GAP is half a stroke width expressed in arc position,
-                which leaves a crisp hairline between zones at any size. */}
-            <Path d={arc(cx, cy, r, 0, 1 / 3 - GAP)} stroke="url(#moodGreen)" strokeWidth={SW}
-              fill="none" opacity={zoneOpacity("Healthy")} />
-            <Path d={arc(cx, cy, r, 1 / 3 + GAP, 2 / 3 - GAP)} stroke="url(#moodAmber)"
-              strokeWidth={SW} fill="none" opacity={zoneOpacity("Caution")} />
-            <Path d={arc(cx, cy, r, 2 / 3 + GAP, 1)} stroke="url(#moodRed)" strokeWidth={SW}
-              fill="none" opacity={zoneOpacity("Correction")} />
+                round-capped band would bleed into its neighbour and the needle
+                would sit on a colour that is not its own band near an edge —
+                the one thing this dial exists to get right. Round caps at the
+                outer ends have the same problem vertically: the tangent at t=0
+                and t=1 points straight down, so the cap would hang below the
+                hub line and clip the card. */}
+            <Path d={arc(cx, cy, r, 0, 0.25 - GAP)} stroke="url(#moodEF)" strokeWidth={SW}
+              fill="none" opacity={bandOpacity("Extreme Fear")} />
+            <Path d={arc(cx, cy, r, 0.25 + GAP, 0.5 - GAP)} stroke="url(#moodF)" strokeWidth={SW}
+              fill="none" opacity={bandOpacity("Fear")} />
+            <Path d={arc(cx, cy, r, 0.5 + GAP, 0.75 - GAP)} stroke="url(#moodG)" strokeWidth={SW}
+              fill="none" opacity={bandOpacity("Greed")} />
+            <Path d={arc(cx, cy, r, 0.75 + GAP, 1)} stroke="url(#moodEG)" strokeWidth={SW}
+              fill="none" opacity={bandOpacity("Extreme Greed")} />
 
-            {/* Boundary ticks, drawn INSIDE the arc. Outside, the 0% and 20%+
-                labels would sit past the card's edge on a narrow screen. */}
+            {/* Boundary ticks, drawn INSIDE the arc. Outside, the end labels
+                would sit past the card's edge on a narrow screen. */}
             {TICKS.map(({ t, text }) => {
               const [lx, ly] = at(cx, cy, r - SW / 2 - 11, t);
-              const anchor = t === 0 ? "start" : t === 1 ? "end" : "middle";
               return (
                 <SvgText
                   key={text}
@@ -209,7 +244,7 @@ export function MoodGauge({
                   y={ly + 3}
                   fill={c.dim}
                   fontSize={9}
-                  textAnchor={anchor}
+                  textAnchor={t === 0 ? "start" : t === 1 ? "end" : "middle"}
                 >
                   {text}
                 </SvgText>
@@ -238,27 +273,25 @@ export function MoodGauge({
                 needleStyle,
               ]}
             >
-              <View
-                style={{
-                  width: needleLen,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: tint,
-                }}
-              />
+              <View style={{ width: needleLen, height: 4, borderRadius: 2, backgroundColor: tint }} />
             </Animated.View>
           ) : null}
 
-          {/* Readout, below the hub — see the geometry note. */}
+          {/* Readout, below the hub — see the geometry note. Line heights are
+              explicit so the block's real height matches READOUT_H. */}
           <View
             pointerEvents="none"
-            style={{ position: "absolute", top: cy + 6, left: 0, right: 0, alignItems: "center" }}
+            style={{ position: "absolute", top: cy + READOUT_TOP, left: 0, right: 0, alignItems: "center" }}
           >
-            <Text style={{ color: tint, fontSize: 28, fontWeight: "800", letterSpacing: -0.6 }}>
+            <Text
+              style={{ color: tint, fontSize: 28, lineHeight: NUM_LH, fontWeight: "800", letterSpacing: -0.6 }}
+            >
               {known ? `${(pctOffHigh as number).toFixed(1)}%` : "—"}
             </Text>
             {caption ? (
-              <Text style={{ color: c.dim, fontSize: 9.5, marginTop: 1 }}>{caption}</Text>
+              <Text style={{ color: c.dim, fontSize: 9.5, lineHeight: CAP_LH, marginTop: 1 }}>
+                {caption}
+              </Text>
             ) : null}
           </View>
         </View>
