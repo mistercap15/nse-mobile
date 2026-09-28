@@ -10,7 +10,7 @@ import bundledPilot from '@/assets/data/gapPaperPilot.json';
 type Row = Record<string, unknown>;
 type Summary = { trades: number; net_pnl: number; account_return: number; max_marked_drawdown_rupees: number; annual: Row[]; by_stock: Record<string, Row> };
 type Pilot = { as_of: string; label: string; warning: string; ambiguity_warning: string; equity_sampling: string; summary: Summary; scenarios: Row[]; trades: Row[]; coverage: Row[]; equity_curve: Row[] };
-type Paper = { data_status: string; message?: string; last_event?: string; execution?: string; paused?: boolean; halted?: boolean; equity?: number; cash?: number; drawdown?: number; universe_size?: number; excluded_stocks?: number; shortlist?: Row[]; stocks?: Record<string, Row>; positions?: Record<string, Row>; signals?: Row[]; trades?: Row[]; rejections?: Row[]; equity_curve?: Row[] };
+type Paper = { daily?: Row; daily_history?: Row[]; day_records?: Record<string, Row[]>; service?: Row; universe?: Row; operational_halt?: boolean; data_status: string; message?: string; last_event?: string; execution?: string; paused?: boolean; halted?: boolean; equity?: number; cash?: number; drawdown?: number; universe_size?: number; excluded_stocks?: number; shortlist?: Row[]; stocks?: Record<string, Row>; positions?: Record<string, Row>; signals?: Row[]; trades?: Row[]; rejections?: Row[]; equity_curve?: Row[] };
 const display = (v: unknown): string => v == null ? '—' : typeof v === 'number' ? v.toLocaleString('en-IN', { maximumFractionDigits: 3 }) : typeof v === 'object' ? Object.entries(v as Row).map(([k,n]) => `${k}: ${display(n)}`).join(' · ') : String(v);
 function Records({ title, rows, fields }: { title: string; rows: Row[]; fields: string[] }) {
   const c = useColors(); const [open, setOpen] = useState(false); const [limit, setLimit] = useState(20);
@@ -21,8 +21,10 @@ function Records({ title, rows, fields }: { title: string; rows: Row[]; fields: 
 }
 export default function GapPaperScreen() {
   const c = useColors(); const focused = useIsFocused();
+  const [day, setDay] = useState(() => new Date(Date.now()+19800000).toISOString().slice(0,10));
+  const moveDay = (offset: number) => setDay(new Date(Date.parse(day+'T12:00:00Z')+offset*86400000).toISOString().slice(0,10));
   const pilot = useQuery({ queryKey: ['gap-paper-pilot'], queryFn: () => request<Pilot>('/api/research/gap-paper/pilot'), staleTime: 300000, enabled: focused, retry: 1 });
-  const account = useQuery({ queryKey: ['gap-paper-account'], queryFn: () => request<Paper>('/api/research/gap-paper'), refetchInterval: focused ? 15000 : false, enabled: focused, retry: 1 });
+  const account = useQuery({ queryKey: ['gap-paper-account',day], queryFn: () => request<Paper>(`/api/research/gap-paper?day=${day}`), refetchInterval: focused ? 15000 : false, enabled: focused, retry: 1 });
   const p: Pilot = pilot.data ?? bundledPilot; const a = account.data;
   const errorText = (e: Error) => e instanceof ApiError && e.status === 404 ? 'This server does not have the paper research update yet. Update the dashboard backend to view this screen.' : e.message;
   const refresh = () => { void pilot.refetch(); void account.refetch(); };
@@ -31,6 +33,29 @@ export default function GapPaperScreen() {
     <Text style={{ color: c.accent, fontWeight: '800' }}>PAPER — NO LIVE ORDERS</Text>
     <Text style={{ color: c.dim }}>Gap & first pullback · V1 · View only</Text>
     <Text style={{ color: c.dim }}>Opening this screen does not start a scanner or trading bot.</Text>
+    <SectionHeader title="Daily paper trading" />
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Previous session date" onPress={()=>moveDay(-1)} style={{ padding: 12 }}><Text style={{ color: c.accent }}>← Earlier</Text></Pressable>
+      <Text style={{ color: c.text, fontWeight: '700' }}>{day}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="Next session date" onPress={()=>moveDay(1)} style={{ padding: 12 }}><Text style={{ color: c.accent }}>Later →</Text></Pressable>
+    </View>
+    <Card style={{ padding: Spacing.md }}>
+      <Text style={{ color: c.text, lineHeight: 22 }}>{display(a?.service?.status).replaceAll('_',' ')}{'\n'}{display(a?.service?.message)}</Text>
+      <Text style={{ color: c.dim, marginTop: 8 }}>{a?.universe?.label ? display(a.universe.label) : 'Forward paper service not connected.'}</Text>
+      <Text style={{ color: c.dim, fontSize: 12, marginTop: 8 }}>Last quote: {display(a?.service?.last_quote_received)}{'\n'}Last completed candle: {display(a?.service?.last_completed_candle)}</Text>
+      {(a?.operational_halt || a?.service?.entry_halt === true) && <Text style={{ color: c.text, marginTop: 8 }}>New entries blocked by data-health checks. Existing paper positions still exit on the next valid quote.</Text>}
+      {(Number(a?.service?.heartbeat_age_seconds)>30 || (a?.service?.status==='observing' && Number(a?.service?.quote_age_seconds)>15)) && <Text accessibilityRole="alert" style={{ color: c.text }}>Service or quotes are stale. These figures are not current marks.</Text>}
+    </Card>
+    {account.error && <Text accessibilityRole="alert" style={{ color: c.text }}>{errorText(account.error)} Retained figures may be stale.</Text>}
+    {!a?.daily ? <Text style={{ color: c.dim }}>No forward paper observations recorded for {day}.</Text> : <>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>{[['Net P&L ₹','net_pnl'],['Realized P&L ₹','realized_pnl'],['Open P&L change ₹','unrealized_change'],['Fees included ₹','fees'],['Equity ₹','equity'],['Day drawdown ₹','max_drawdown']].map(([label,key])=><Card key={key} style={{ padding: Spacing.md, width: '47%' }}><Text style={{ color: c.dim, fontSize: 11 }}>{label}</Text><Text style={{ color: c.text, fontWeight: '800', fontSize: 20 }}>{display(a.daily?.[key])}</Text></Card>)}</View>
+      <Text style={{ color: c.text }}>{display(a.daily.entries)} entries · {display(a.daily.closed_trades)} closed trades · {display(a.daily.open_positions)} open</Text>
+      <Records title="Trades closed this day" rows={a.day_records?.trades || []} fields={['symbol','qty','entry_at','exit_at','entry','exit','pnl','reason','entry_costs','exit_costs']} />
+      <Records title="This day’s signals" rows={a.day_records?.signals || []} fields={['symbol','at','observed_at','trigger','stop','rank']} />
+      <Records title="This day’s rejected entries" rows={a.day_records?.rejections || []} fields={['symbol','at','reason']} />
+    </>}
+    <Text style={{ color: c.dim, fontSize: 12 }}>Net daily P&L = realized P&L + change in open P&L, including fees paid. Future exit charges are not yet deducted from open trades. Five-second quote polling can miss touches; fills are estimates, never exchange orders.</Text>
+    <Records title="Daily history" rows={a?.daily_history || []} fields={['day','net_pnl','realized_pnl','unrealized_change','fees','entries','closed_trades','equity','max_drawdown']} />
     <SectionHeader title="Historical pilot" />
     {!pilot.data && <Text style={{ color: c.dim, fontSize: 12 }}>Showing the bundled research snapshot through {p.as_of}. Pull down to check for a newer server snapshot.</Text>}
     {pilot.error && <Text accessibilityRole="alert" style={{ color: c.text }}>{errorText(pilot.error)} Saved research results below remain available.</Text>}
