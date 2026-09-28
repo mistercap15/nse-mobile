@@ -3,7 +3,8 @@ import { Platform } from "react-native";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Where the backend lives. The app is a native front-end over the existing
-// Next.js API — there is no second backend and no bundled dataset.
+// Next.js API — there is no second backend. Gap-paper additionally carries a
+// dated, read-only copy of the backend research snapshot for unavailable servers.
 //
 // Resolution order:
 //   1. EXPO_PUBLIC_API_BASE          (set in .env / EAS build env)
