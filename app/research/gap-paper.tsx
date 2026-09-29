@@ -1,90 +1,92 @@
-import React, { useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import { useIsFocused } from '@react-navigation/native';
-import { Card, SectionHeader } from '@/components/ui';
-import { request, ApiError } from '@/lib/client';
-import { Spacing, useColors } from '@/lib/theme';
-import bundledPilot from '@/assets/data/gapPaperPilot.json';
+import { router } from 'expo-router';
+import { Badge, Card, EmptyState, ErrorState, Label, SectionHeader, StatCard, StatRow } from '@/components/ui';
+import { SkeletonCard } from '@/components/Skeleton';
+import { request } from '@/lib/client';
+import { Radius, Spacing, Type, useColors } from '@/lib/theme';
+import { GapRow, PaperAccount, Trade, istTime, money, reasonLabel, stageLabel } from '@/lib/gapPaper';
 
-type Row = Record<string, unknown>;
-type Summary = { trades: number; net_pnl: number; account_return: number; max_marked_drawdown_rupees: number; annual: Row[]; by_stock: Record<string, Row> };
-type Pilot = { as_of: string; label: string; warning: string; ambiguity_warning: string; equity_sampling: string; summary: Summary; scenarios: Row[]; trades: Row[]; coverage: Row[]; equity_curve: Row[] };
-type Paper = { daily?: Row; daily_history?: Row[]; day_records?: Record<string, Row[]>; service?: Row; universe?: Row; operational_halt?: boolean; data_status: string; message?: string; last_event?: string; execution?: string; paused?: boolean; halted?: boolean; equity?: number; cash?: number; drawdown?: number; universe_size?: number; excluded_stocks?: number; shortlist?: Row[]; stocks?: Record<string, Row>; positions?: Record<string, Row>; signals?: Row[]; trades?: Row[]; rejections?: Row[]; equity_curve?: Row[] };
-const display = (v: unknown): string => v == null ? '—' : typeof v === 'number' ? v.toLocaleString('en-IN', { maximumFractionDigits: 3 }) : typeof v === 'object' ? Object.entries(v as Row).map(([k,n]) => `${k}: ${display(n)}`).join(' · ') : String(v);
-function Records({ title, rows, fields }: { title: string; rows: Row[]; fields: string[] }) {
-  const c = useColors(); const [open, setOpen] = useState(false); const [limit, setLimit] = useState(20);
-  return <Card style={{ padding: Spacing.md }}>
-    <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)}><Text style={{ color: c.text, fontWeight: '700', fontSize: 15 }}>{open ? '−' : '+'} {title} ({rows.length})</Text></Pressable>
-    {open && <View style={{ gap: 12, marginTop: 12 }}>{!rows.length && <Text style={{ color: c.dim }}>No records yet.</Text>}{rows.slice(0, limit).map((row,i) => <View key={i} style={{ borderTopWidth: 1, borderColor: c.border, paddingTop: 10 }}>{fields.map(field => <Text key={field} selectable style={{ color: c.text, lineHeight: 21, fontSize: 12 }}>{field.replaceAll('_', ' ')}: {display(row[field])}</Text>)}</View>)}{rows.length > limit && <Pressable accessibilityRole="button" onPress={() => setLimit(limit + 20)}><Text style={{ color: c.accent }}>Show 20 more</Text></Pressable>}</View>}
+const today = () => new Date(Date.now()+19800000).toISOString().slice(0,10);
+const tabs = ['Scanner','Paper trades','How it works'] as const;
+const filters = ['All gap-ups','1–10%','Eligible','Watching'] as const;
+
+function TradeCard({trade, open=false}:{trade:Trade;open?:boolean}) {
+  const c=useColors(); const pnl=open ? (Number(trade.mark)-trade.entry)*trade.qty-Object.values(trade.entry_costs || {}).reduce((a,b)=>a+b,0) : trade.pnl;
+  return <Card style={{padding:Spacing.md,marginBottom:Spacing.sm}} stripe={(pnl || 0)>=0?c.green:c.red}>
+    <View style={{flexDirection:'row',justifyContent:'space-between',gap:8}}><Text style={{color:c.text,fontSize:16,fontWeight:'800'}}>{trade.symbol}</Text><Text style={{color:(pnl || 0)>=0?c.green:c.red,fontWeight:'800',...Type.numeric}}>{money(pnl)}</Text></View>
+    <Text style={{color:c.dim,fontSize:11,marginTop:5}}>{trade.qty} shares · {istTime(trade.entry_at)}{open?' · Open position':` → ${istTime(trade.exit_at)}`}</Text>
+    <View style={{flexDirection:'row',justifyContent:'space-between',marginTop:12}}>{[['Entry',trade.entry],[open?'Mark':'Exit',open?trade.mark:trade.exit],['Stop',trade.stop]].map(([label,value])=><View key={String(label)}><Label style={{fontSize:9}}>{label}</Label><Text style={{color:c.text,fontSize:12,marginTop:4,...Type.numeric}}>{money(value as number)}</Text></View>)}</View>
+    <Text style={{color:c.soft,fontSize:11,marginTop:10}}>{open?`Target ${money(trade.target)} · includes entry charges`:reasonLabel(trade.reason)}</Text>
   </Card>;
 }
+
 export default function GapPaperScreen() {
-  const c = useColors(); const focused = useIsFocused();
-  const [day, setDay] = useState(() => new Date(Date.now()+19800000).toISOString().slice(0,10));
-  const moveDay = (offset: number) => setDay(new Date(Date.parse(day+'T12:00:00Z')+offset*86400000).toISOString().slice(0,10));
-  const pilot = useQuery({ queryKey: ['gap-paper-pilot'], queryFn: () => request<Pilot>('/api/research/gap-paper/pilot'), staleTime: 300000, enabled: focused, retry: 1 });
-  const account = useQuery({ queryKey: ['gap-paper-account',day], queryFn: () => request<Paper>(`/api/research/gap-paper?day=${day}`), refetchInterval: focused ? 15000 : false, enabled: focused, retry: 1 });
-  const p: Pilot = pilot.data ?? bundledPilot; const a = account.data;
-  const errorText = (e: Error) => e instanceof ApiError && e.status === 404 ? 'This server does not have the paper research update yet. Update the dashboard backend to view this screen.' : e.message;
-  const refresh = () => { void pilot.refetch(); void account.refetch(); };
-  const stats = p ? [['Trades', p.summary.trades], ['Net P&L ₹',p.summary.net_pnl], ['Account return %',p.summary.account_return*100], ['Maximum drawdown ₹',p.summary.max_marked_drawdown_rupees]] : [];
-  return <ScrollView style={{ backgroundColor: c.bg }} contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl, gap: Spacing.md }} refreshControl={<RefreshControl refreshing={pilot.isRefetching || account.isRefetching} onRefresh={refresh} tintColor={c.accent} />}>
-    <Text style={{ color: c.accent, fontWeight: '800' }}>PAPER — NO LIVE ORDERS</Text>
-    <Text style={{ color: c.dim }}>Gap & first pullback · V1 · View only</Text>
-    <Text style={{ color: c.dim }}>Opening this screen does not start a scanner or trading bot.</Text>
-    <SectionHeader title="Daily paper trading" />
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Previous session date" onPress={()=>moveDay(-1)} style={{ padding: 12 }}><Text style={{ color: c.accent }}>← Earlier</Text></Pressable>
-      <Text style={{ color: c.text, fontWeight: '700' }}>{day}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Next session date" onPress={()=>moveDay(1)} style={{ padding: 12 }}><Text style={{ color: c.accent }}>Later →</Text></Pressable>
-    </View>
-    <Card style={{ padding: Spacing.md }}>
-      <Text style={{ color: c.text, lineHeight: 22 }}>{display(a?.service?.status).replaceAll('_',' ')}{'\n'}{display(a?.service?.message)}</Text>
-      <Text style={{ color: c.dim, marginTop: 8 }}>{a?.universe?.label ? display(a.universe.label) : 'Forward paper service not connected.'}</Text>
-      <Text style={{ color: c.dim, fontSize: 12, marginTop: 8 }}>Last quote: {display(a?.service?.last_quote_received)}{'\n'}Last completed candle: {display(a?.service?.last_completed_candle)}</Text>
-      {(a?.operational_halt || a?.service?.entry_halt === true) && <Text style={{ color: c.text, marginTop: 8 }}>New entries blocked by data-health checks. Existing paper positions still exit on the next valid quote.</Text>}
-      {(Number(a?.service?.heartbeat_age_seconds)>30 || (a?.service?.status==='observing' && Number(a?.service?.quote_age_seconds)>15)) && <Text accessibilityRole="alert" style={{ color: c.text }}>Service or quotes are stale. These figures are not current marks.</Text>}
-    </Card>
-    {account.error && <Text accessibilityRole="alert" style={{ color: c.text }}>{errorText(account.error)} Retained figures may be stale.</Text>}
-    {!a?.daily ? <Text style={{ color: c.dim }}>No forward paper observations recorded for {day}.</Text> : <>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>{[['Net P&L ₹','net_pnl'],['Realized P&L ₹','realized_pnl'],['Open P&L change ₹','unrealized_change'],['Fees included ₹','fees'],['Equity ₹','equity'],['Day drawdown ₹','max_drawdown']].map(([label,key])=><Card key={key} style={{ padding: Spacing.md, width: '47%' }}><Text style={{ color: c.dim, fontSize: 11 }}>{label}</Text><Text style={{ color: c.text, fontWeight: '800', fontSize: 20 }}>{display(a.daily?.[key])}</Text></Card>)}</View>
-      <Text style={{ color: c.text }}>{display(a.daily.entries)} entries · {display(a.daily.closed_trades)} closed trades · {display(a.daily.open_positions)} open</Text>
-      <Records title="Trades closed this day" rows={a.day_records?.trades || []} fields={['symbol','qty','entry_at','exit_at','entry','exit','pnl','reason','entry_costs','exit_costs']} />
-      <Records title="This day’s signals" rows={a.day_records?.signals || []} fields={['symbol','at','observed_at','trigger','stop','rank']} />
-      <Records title="This day’s rejected entries" rows={a.day_records?.rejections || []} fields={['symbol','at','reason']} />
+  const c=useColors(); const focused=useIsFocused(); const [tab,setTab]=useState<typeof tabs[number]>('Scanner');
+  const [filter,setFilter]=useState<typeof filters[number]>('All gap-ups'); const [search,setSearch]=useState(''); const [day,setDay]=useState(today);
+  const [expanded,setExpanded]=useState<string|null>(null);
+  const account=useQuery({queryKey:['gap-paper-account',day],queryFn:()=>request<PaperAccount>(`/api/research/gap-paper?day=${day}`),enabled:focused,refetchInterval:focused?15000:false,retry:1});
+  const a=account.data; const scan=a?.scanner; const d=a?.daily;
+  const shortlist=a?.session===day && a?.selection?.day===day ? a?.shortlist || [] : [];
+  const watched=new Map(shortlist.map(r=>[r.symbol,r.rank]));
+  const stale=!!account.error || Number(a?.service?.heartbeat_age_seconds)>30 || (a?.service?.status!=='market_closed' && scan && Date.now()-Date.parse(scan.completed_at)>180000);
+  const tint=stale?c.red:a?.service?.entry_halt?c.amber:c.accent;
+  const title=stale?'Data needs attention':a?.service?.status==='market_closed'?'Market closed':scan?'Scanning NSE cash equities':'Waiting for the NSE scan';
+  const rows=useMemo(()=> (scan?.rows || []).filter(r=>r.gap>0 && (r.symbol+' '+r.name).toLowerCase().includes(search.toLowerCase()) &&
+    (filter==='All gap-ups' || filter==='1–10%' && r.gap>=.01 && r.gap<=.1 || filter==='Eligible' && r.eligibility==='eligible' || filter==='Watching' && shortlist.some(s=>s.symbol===r.symbol))),[scan,search,filter,shortlist]);
+  const changeDay=(n:number)=>setDay(new Date(Date.parse(day+'T12:00:00Z')+n*86400000).toISOString().slice(0,10));
+  const top=<View>
+    <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8}}><Label>NSE · Gap & first pullback</Label><Badge text="PAPER" color={c.amber} small/></View>
+    <Text style={{color:c.text,fontSize:28,fontWeight:'800',letterSpacing:-.8,marginTop:8}}>Find the opening gaps<Text style={{color:c.accent}}>.</Text></Text>
+    <Text style={{color:c.soft,fontSize:12,lineHeight:18,marginTop:5}}>Scan the market. Follow the first pullback. Track simulated trades.</Text>
+    <View style={{flexDirection:'row',backgroundColor:c.card,borderRadius:Radius.md,padding:4,marginTop:Spacing.lg}}>{tabs.map(t=><Pressable accessibilityRole="tab" accessibilityState={{selected:tab===t}} key={t} onPress={()=>{setTab(t);if(t==='Scanner')setDay(today());}} style={{flex:1,paddingVertical:11,borderRadius:Radius.sm,backgroundColor:tab===t?c.accentBg:'transparent'}}><Text style={{color:tab===t?c.accent:c.dim,textAlign:'center',fontSize:11,fontWeight:'700'}}>{t}</Text></Pressable>)}</View>
+    {tab!=='How it works' && <Card tint={tint} stripe={tint} style={{padding:Spacing.md,marginTop:Spacing.md}}>
+      <View style={{flexDirection:'row',alignItems:'center',gap:9}}><Ionicons name={stale?'alert-circle-outline':'radio-outline'} size={19} color={tint}/><Text style={{color:c.text,fontSize:15,fontWeight:'800',flex:1}}>{title}</Text></View>
+      <Text style={{color:c.dim,fontSize:11,lineHeight:17,marginTop:7}}>{scan?`${scan.quoted.toLocaleString('en-IN')} / ${scan.exchange_listed.toLocaleString('en-IN')} shares quoted · ${istTime(scan.completed_at)}`:'No complete market scan received. This is not a saved stock list.'}</Text>
+      {a?.service?.entry_halt && <Text style={{color:c.amber,fontSize:11,lineHeight:17,marginTop:7}}>{a.service.entry_halt_reason || 'New paper entries paused by data checks.'}</Text>}
+    </Card>}
+    {account.isPending && <View style={{marginTop:14}}><SkeletonCard height={100}/></View>}
+    {account.error && <ErrorState message="Could not refresh the paper scanner. Retained results may be stale." onRetry={account.refetch}/>}
+    {tab==='Scanner' && <>
+      <View style={{marginTop:Spacing.sm}}><StatRow><StatCard label="Gap-ups" value={scan?String(scan.gap_up):'—'} sub="across the scanned market" color={c.green}/><StatCard label="Eligible" value={scan?String(scan.eligible):'—'} sub="1–10% + history + liquidity"/><StatCard label="Watching" value={String(shortlist.length)} sub="up to 5 V1 setups" color={c.accent}/></StatRow></View>
+      {a?.preparation && a.preparation.ready<a.preparation.total && <Card style={{padding:Spacing.md,marginTop:Spacing.sm}}><Text style={{color:c.text,fontSize:12,fontWeight:'700'}}>Eligibility checks: {a.preparation.checked.toLocaleString()} / {a.preparation.total.toLocaleString()}</Text><View style={{height:4,backgroundColor:c.border,borderRadius:4,marginTop:9}}><View style={{height:4,borderRadius:4,backgroundColor:c.accent,width:`${Math.min(100,a.preparation.checked/Math.max(1,a.preparation.total)*100)}%`}}/></View><Text style={{color:c.dim,fontSize:11,lineHeight:17,marginTop:7}}>{a.preparation.ready.toLocaleString()} have enough history · {a.preparation.failed} failed checks. {a.preparation.status==='authentication_required'?'Preparation stopped: broker authentication needs attention.':a.preparation.status==='complete'?'Checks complete; incomplete histories remain excluded.':'Prior candles and corporate actions are being checked.'} Unverified stocks cannot become paper entries.</Text></Card>}
+      {!!shortlist.length && <><SectionHeader title="V1 watchlist" icon="eye-outline"/><View style={{gap:8}}>{shortlist.map(r=><Card key={r.symbol} tint={c.accent} style={{padding:Spacing.md}}><View style={{flexDirection:'row',justifyContent:'space-between'}}><Text style={{color:c.text,fontWeight:'800'}}>{r.rank}. {r.symbol}</Text><Text style={{color:c.green,...Type.numeric}}>+{(r.gap*100).toFixed(2)}%</Text></View><Text style={{color:c.soft,fontSize:12,marginTop:6}}>{stageLabel(a?.stocks?.[r.symbol])}</Text>{a?.stocks?.[r.symbol]?.pending && <Text style={{color:c.dim,fontSize:11,marginTop:5}}>Buy above {money(a.stocks[r.symbol].pending?.trigger)} · stop {money(a.stocks[r.symbol].pending?.stop)}</Text>}</Card>)}</View></>}
+      <SectionHeader title="Market gap-ups" icon="trending-up-outline" right={<Text style={{color:c.dim,fontSize:11}}>{rows.length} matches</Text>}/>
+      <View style={{flexDirection:'row',alignItems:'center',gap:8,borderWidth:1,borderColor:c.border,borderRadius:Radius.md,paddingHorizontal:12,backgroundColor:c.card}}><Ionicons name="search-outline" size={17} color={c.dim}/><TextInput accessibilityLabel="Search gap-up stocks" placeholder="Search symbol or company" placeholderTextColor={c.dim} value={search} onChangeText={setSearch} autoCapitalize="characters" style={{color:c.text,flex:1,paddingVertical:12,fontSize:13}}/></View>
+      <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,marginVertical:12}}>{filters.map(f=><Pressable accessibilityRole="button" key={f} onPress={()=>setFilter(f)} style={{paddingHorizontal:10,paddingVertical:8,borderRadius:Radius.sm,borderWidth:1,borderColor:filter===f?c.accent:c.border,backgroundColor:filter===f?c.accentBg:c.card}}><Text style={{color:filter===f?c.accent:c.soft,fontSize:10,fontWeight:'700'}}>{f}</Text></Pressable>)}</View>
+      <Text style={{color:c.dim,fontSize:10,lineHeight:16,marginBottom:12}}>Opening gap = session open vs previous close. It stays fixed as prices move. Tap a stock for its source and eligibility checks.</Text>
     </>}
-    <Text style={{ color: c.dim, fontSize: 12 }}>Net daily P&L = realized P&L + change in open P&L, including fees paid. Future exit charges are not yet deducted from open trades. Five-second quote polling can miss touches; fills are estimates, never exchange orders.</Text>
-    <Records title="Daily history" rows={a?.daily_history || []} fields={['day','net_pnl','realized_pnl','unrealized_change','fees','entries','closed_trades','equity','max_drawdown']} />
-    <SectionHeader title="Historical pilot" />
-    {!pilot.data && <Text style={{ color: c.dim, fontSize: 12 }}>Showing the bundled research snapshot through {p.as_of}. Pull down to check for a newer server snapshot.</Text>}
-    {pilot.error && <Text accessibilityRole="alert" style={{ color: c.text }}>{errorText(pilot.error)} Saved research results below remain available.</Text>}
-    {p && <>
-      <Text style={{ color: c.text }}>{p.label} · through {p.as_of}</Text>
-      <Card style={{ padding: Spacing.md }}><Text style={{ color: c.text, lineHeight: 21 }}>{p.warning}</Text></Card>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>{stats.map(([label,value]) => <Card key={String(label)} style={{ padding: Spacing.md, width: '47%' }}><Text style={{ color: c.dim, fontSize: 11 }}>{label}</Text><Text style={{ color: c.text, fontSize: 20, fontWeight: '800', marginTop: 4 }}>{display(value)}</Text></Card>)}</View>
-      <Records title="Yearly account results" rows={p.summary.annual.map(r => ({ ...r, return_percent: Number(r.account_return)*100 }))} fields={['year','trades','net_account_pnl','return_percent','profit_factor']} />
-      <Records title="Results by stock" rows={Object.entries(p.summary.by_stock).map(([symbol,r]) => ({ symbol,...r }))} fields={['symbol','trades','net_pnl','win_rate','profit_factor']} />
-      <Records title="Cost and data sensitivity" rows={p.scenarios.map(r=>({...r,return_percent:Number(r.account_return)*100}))} fields={['scenario','trades','net_pnl','return_percent','profit_factor']} />
-      <Text style={{ color: c.dim, fontSize: 12 }}>{p.ambiguity_warning}</Text>
-      <Records title="Pilot trades and costs" rows={p.trades} fields={['symbol','qty','entry_at','exit_at','entry','exit','pnl','reason','entry_costs','exit_costs']} />
-      <Text style={{ color: c.dim, fontSize: 12 }}>{p.equity_sampling}</Text>
-      <Records title="Pilot equity" rows={p.equity_curve} fields={['at','equity']} />
-      <Records title="Data coverage" rows={p.coverage} fields={['symbol','earliest','latest','valid_unique_rows','invalid_rows','zero_volume_bars']} />
+    {tab==='Paper trades' && <>
+      <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginVertical:Spacing.md}}><Pressable accessibilityLabel="Previous day" onPress={()=>changeDay(-1)} style={{padding:8}}><Ionicons name="chevron-back" size={20} color={c.accent}/></Pressable><Text style={{color:c.text,fontWeight:'700'}}>{day}</Text><Pressable accessibilityLabel="Next day" onPress={()=>changeDay(1)} style={{padding:8}}><Ionicons name="chevron-forward" size={20} color={c.accent}/></Pressable></View>
+      <Card tint={d&&d.net_pnl<0?c.red:c.green} style={{padding:Spacing.lg}}><Label>Net paper P&L · {day}</Label><Text style={{color:d&&d.net_pnl<0?c.red:c.green,fontSize:34,fontWeight:'800',letterSpacing:-1,marginTop:8,...Type.numeric}}>{money(d?.net_pnl)}</Text><Text style={{color:c.dim,fontSize:11,marginTop:5}}>{d?`${d.entries} entries · ${d.closed_trades} closed trades · fees included`:'No forward observations recorded for this date.'}</Text></Card>
+      <View style={{marginTop:8}}><StatRow><StatCard label="Realized" value={money(d?.realized_pnl)}/><StatCard label="Open P&L change" value={money(d?.unrealized_change)}/></StatRow></View>
+      <View style={{marginTop:8}}><StatRow><StatCard label="Current equity" value={money(a?.equity)}/><StatCard label="Fees paid" value={money(d?.fees)}/></StatRow></View>
+      <SectionHeader title="Current open positions" icon="briefcase-outline"/>
+      {!Object.keys(a?.positions || {}).length ? <EmptyState emoji="◌" title="No open positions" hint="The bot waits for a qualifying first pullback; a gap alone is not a trade."/> : Object.values(a?.positions || {}).map(p=><TradeCard key={p.symbol} trade={p} open/>)}
+      <SectionHeader title="Closed trades" icon="checkmark-done-outline"/>
+      {!(a?.day_records?.trades || []).length?<EmptyState emoji="—" title="No closed trades this day" hint="Only forward simulated fills appear here."/>:a?.day_records?.trades?.map((t,i)=><TradeCard key={i} trade={t}/>)}
+      <SectionHeader title="Signal activity" icon="pulse-outline"/>
+      {(a?.day_records?.signals || []).map((s,i)=><Card key={i} style={{padding:Spacing.md,marginBottom:8}}><Text style={{color:c.text,fontWeight:'700'}}>{s.symbol} · {istTime(s.at)}</Text><Text style={{color:c.dim,fontSize:12,marginTop:5}}>Trigger {money(s.trigger)} · stop {money(s.stop)}</Text></Card>)}
+      {(a?.day_records?.rejections || []).slice(-20).map((r,i)=><Text key={i} style={{color:c.dim,fontSize:11,lineHeight:18}}>{r.symbol} · {reasonLabel(r.reason)}</Text>)}
+      <Text style={{color:c.dim,fontSize:11,lineHeight:17,marginTop:14}}>Daily net P&L includes realized P&L and the change in open P&L. Future exit fees are not yet deducted from open positions.</Text>
     </>}
-    <SectionHeader title="Current paper account" />
-    {account.isPending && <Text style={{ color: c.dim }}>Loading account status…</Text>}
-    {account.error && <Text accessibilityRole="alert" style={{ color: c.text }}>{errorText(account.error)} Any retained account figures may be stale.</Text>}
-    {a && <>
-      <Card style={{ padding: Spacing.md }}><Text style={{ color: c.text, lineHeight: 22 }}>Status: {a.data_status}{'\n'}Last event: {a.last_event || 'none'}{'\n'}Fill model: {a.execution || 'not active'}{'\n'}Paper entries: {a.paused ? 'paused' : a.equity == null ? 'not initialized' : 'enabled'} · Daily halt: {a.halted ? 'yes' : 'no'}{'\n'}Observed stocks: {a.universe_size || 0} · Excluded: {a.excluded_stocks || 0}{'\n'}Cash ₹{display(a.cash)} · Equity ₹{display(a.equity)}{'\n'}Maximum drawdown ₹{display(a.drawdown)}</Text><Text style={{ color: c.dim, marginTop: 8 }}>{a.data_status === 'disabled' || a.data_status === 'not_initialized' ? 'Paper observation is not active on this server. Historical pilot results above remain available.' : a.message}</Text></Card>
-      <Records title="Frozen shortlist" rows={a.shortlist || []} fields={['symbol','rank','gap','median_value']} />
-      <Records title="Setups and exclusions" rows={Object.entries(a.stocks || {}).map(([symbol,r])=>({symbol,...r}))} fields={['symbol','phase','reason','ema','vwap','pending','proposed_quantity','proposed_target']} />
-      <Records title="Signals" rows={a.signals || []} fields={['symbol','at','observed_at','trigger','stop','rank']} />
-      <Records title="Open paper positions" rows={Object.values(a.positions || {})} fields={['symbol','qty','entry','stop','target','mark']} />
-      <Records title="Closed paper trades" rows={a.trades || []} fields={['symbol','entry','exit','pnl','entry_costs','exit_costs','reason']} />
-      <Records title="Rejected signals" rows={a.rejections || []} fields={['symbol','at','reason']} />
-      <Records title="Recent paper equity" rows={(a.equity_curve || []).slice(-20)} fields={['at','equity','drawdown','stale_marks']} />
+    {tab==='How it works' && <>
+      <SectionHeader title="From market scan to paper trade" icon="git-branch-outline"/>
+      {[['01','Scan NSE shares','Read the full NSE equity list and fetch live opening prices from Upstox. Show every positive gap, with missing quotes and excluded instruments accounted for.'],['02','Verify eligibility','Require a 1–10% gap, 20 complete prior sessions, median traded-value proxy of at least ₹10 crore, and valid instrument/corporate-action checks.'],['03','Freeze the top five','After the 09:20 candle closes, rank eligible stocks by gap, then liquidity. These five are monitored; the scanner still shows the rest of the market.'],['04','Wait for the first pullback','After a 0.5% opening advance, require a 2–5-candle first pullback near EMA9 or session VWAP, above the session open.'],['05','Simulate the trade','Buy only on a later ask above the trigger. Risk 0.25% of the paper account, target 2R, no new entry after 11:00, and square off at 15:15.']].map(([n,h,note])=><Card key={n} style={{padding:Spacing.md,marginBottom:8}}><View style={{flexDirection:'row',gap:12}}><Text style={{color:c.accent,fontWeight:'800',fontSize:18,...Type.numeric}}>{n}</Text><View style={{flex:1}}><Text style={{color:c.text,fontWeight:'700',fontSize:14}}>{h}</Text><Text style={{color:c.soft,fontSize:12,lineHeight:18,marginTop:5}}>{note}</Text></View></View></Card>)}
+      <Card tint={c.amber} style={{padding:Spacing.md,marginTop:8}}><Text style={{color:c.amber,fontWeight:'700'}}>Simulation, not exchange orders</Text><Text style={{color:c.soft,fontSize:12,lineHeight:18,marginTop:7}}>The service runs independently of this app. Quotes are sampled about every five seconds; touches and full fills are not guaranteed. Spread, assumed slippage and fees are included. Unknown data blocks entries.</Text></Card>
+      <Pressable onPress={()=>router.push('/research/gap-paper-history' as never)} style={{paddingVertical:20,flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}><View><Text style={{color:c.accent,fontWeight:'700'}}>Historical five-stock pilot</Text><Text style={{color:c.dim,fontSize:11,marginTop:4}}>Separate research — not today’s scanner</Text></View><Ionicons name="chevron-forward" color={c.accent} size={18}/></Pressable>
     </>}
-    <Text style={{ color: c.dim, fontSize: 12 }}>Historical results and the current account are separate. Gaps and win rates are fractions: 0.02 = 2%. Paper pause/reset controls remain on the dashboard.</Text>
-  </ScrollView>;
+  </View>;
+  return <FlatList style={{backgroundColor:c.bg}} contentContainerStyle={{padding:Spacing.md,paddingBottom:Spacing.xxl}} data={tab==='Scanner'?rows:[]} keyExtractor={r=>r.symbol} ListHeaderComponent={top} initialNumToRender={20} windowSize={7}
+    refreshControl={<RefreshControl refreshing={account.isRefetching} onRefresh={account.refetch} tintColor={c.accent}/>}
+    ListEmptyComponent={tab==='Scanner'&&!account.isPending?<EmptyState emoji="⌕" title={scan?'No stocks match this filter':'Waiting for the full-market scan'} hint={scan?'Try another filter or search.':'Live results will appear after actual quotes are received.'}/>:null}
+    ListFooterComponent={tab==='Scanner'?<Text style={{color:c.dim,fontSize:10,lineHeight:16,marginTop:14}}>{scan?.source || 'Source: NSE equity master and authenticated Upstox market data'}{scan?.unavailable.length?` · ${scan.unavailable.length} stocks have unavailable data.`:''}{'\n'}PAPER — NO LIVE ORDERS</Text>:null}
+    renderItem={({item:r})=><Pressable accessibilityRole="button" accessibilityState={{expanded:expanded===r.symbol}} onPress={()=>setExpanded(expanded===r.symbol?null:r.symbol)}><Card style={{padding:Spacing.md,marginBottom:Spacing.sm}} stripe={watched.has(r.symbol)?c.accent:undefined}>
+      <View style={{flexDirection:'row',alignItems:'flex-start',justifyContent:'space-between',gap:10}}><View style={{flex:1,minWidth:0}}><Text style={{color:c.text,fontSize:15,fontWeight:'800'}}>{r.symbol}</Text><Text numberOfLines={1} style={{color:c.dim,fontSize:10,marginTop:4}}>{r.name}</Text></View><View style={{alignItems:'flex-end'}}><Text style={{color:c.green,fontSize:20,fontWeight:'800',letterSpacing:-.4,...Type.numeric}}>+{(r.gap*100).toFixed(2)}%</Text><Text style={{color:c.dim,fontSize:9}}>opening gap</Text></View></View>
+      <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginTop:12,gap:8}}><Text style={{color:c.soft,fontSize:11,...Type.numeric}}>Open {money(r.open)}</Text><Badge text={watched.has(r.symbol)?`WATCHING #${watched.get(r.symbol)}`:reasonLabel(r.eligibility)} color={watched.has(r.symbol)?c.accent:r.eligibility==='eligible'?c.green:c.dim} small/></View>
+      {expanded===r.symbol && <View style={{marginTop:12,paddingTop:12,borderTopWidth:1,borderColor:c.border,gap:6}}><Text style={{color:c.soft,fontSize:12}}>Previous close {money(r.previous_close)} · last {money(r.last_price)}</Text><Text style={{color:c.soft,fontSize:12}}>History: {r.history_sessions} complete sessions · median value {r.median_value==null?'not verified':`₹${(r.median_value/1e7).toFixed(2)} cr`}</Text><Text style={{color:c.dim,fontSize:11}}>Quote {istTime(r.quote_at)} · received {istTime(r.received_at)}</Text><Text style={{color:c.dim,fontSize:11}}>{r.gap_basis==='verified_prior_candle_close'?'Previous close verified from candles.':'Indicative gap; previous close and corporate actions still need verification.'}</Text></View>}
+    </Card></Pressable>}/>;
 }
