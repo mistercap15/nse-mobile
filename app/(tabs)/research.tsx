@@ -16,6 +16,7 @@ const LINKS: {
   desc: string;
   icon: React.ComponentProps<typeof Ionicons>["name"];
 }[] = [
+  { href: "/research/gap-paper", title: "Gap Pullback · Paper", desc: "Five-stock research results, scanner status and hypothetical trades — no live orders", icon: "analytics-outline" },
   {
     href: "/research/screener",
     title: "Screener",
