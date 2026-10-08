@@ -6,6 +6,7 @@ export type GapRow = {
 export type Trade = { symbol: string; qty: number; entry: number; exit?: number; pnl?: number; entry_at: string; exit_at?: string; stop: number; target: number; mark?: number; reason?: string; entry_costs?: Record<string, number>; exit_costs?: Record<string, number> };
 export type Setup = { phase?: string; reason?: string; pending?: {trigger: number; stop: number}; proposed_quantity?: number; proposed_target?: number; ema?: number; vwap?: number };
 export type PaperAccount = {
+  session_diagnostics?: {day:string;summary:string;setups:({symbol:string;rank:number;gap:number}&Setup)[];signals:number;entries:number;entry_halted?:boolean;halt_reason?:string;quote_issues:{symbol:string;reason:string}[];last_observation?:string};
   selection?: {day?: string;scope?:string}; session?: string; paused?: boolean; operational_halt?: boolean; halted?: boolean; equity?: number; cash?: number;
   shortlist?: {symbol: string; rank: number; gap: number}[]; stocks?: Record<string,Setup>; positions?: Record<string,Trade>;
   daily?: { net_pnl: number; realized_pnl: number; unrealized_change: number; fees: number; entries: number; closed_trades: number; max_drawdown: number };
@@ -15,6 +16,13 @@ export type PaperAccount = {
   preparation?: { total: number; checked: number; ready: number; failed: number; status: string; as_of: string };
 };
 export const reasonLabel = (reason?: string): string => ({
+  advance_timeout: 'No 0.5% closing advance by 10:00',
+  first_pullback_ended_early: 'First pullback ended before two lower-close candles',
+  pullback_below_open: 'Pullback touched or fell below the session open',
+  first_pullback_proximity_failed: 'Pullback too far from EMA9 and VWAP',
+  sixth_pullback_candle: 'Pullback exceeded five candles',
+  no_ask: 'No sell offers — buy unavailable', no_bid: 'No buy bids — sell unavailable',
+  empty_book: 'No executable bids or offers', unusable_quote: 'Quote failed data checks',
   eligible: 'Eligible for V1', history_pending: 'History check pending', insufficient_complete_history: 'Needs 20 complete sessions',
   corporate_action_quarantine: 'Corporate action — excluded', below_10_crore_liquidity: 'Below ₹10 cr liquidity', outside_1_to_10_percent: 'Outside 1–10% range',
   non_regular_series: 'Restricted trading series', restricted_security_type: 'Restricted security', history_warmup: 'History not ready',
