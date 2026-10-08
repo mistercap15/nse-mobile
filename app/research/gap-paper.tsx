@@ -6,6 +6,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { Badge, Card, EmptyState, ErrorState, Label, SectionHeader, StatCard, StatRow } from '@/components/ui';
 import { SkeletonCard } from '@/components/Skeleton';
+import { GapSessionStatus } from '@/components/GapSessionStatus';
 import { request } from '@/lib/client';
 import { Radius, Spacing, Type, useColors } from '@/lib/theme';
 import { GapRow, PaperAccount, Trade, istTime, money, reasonLabel, stageLabel } from '@/lib/gapPaper';
@@ -61,6 +62,7 @@ export default function GapPaperScreen() {
     </>}
     {tab==='Paper trades' && <>
       <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginVertical:Spacing.md}}><Pressable accessibilityLabel="Previous day" onPress={()=>changeDay(-1)} style={{padding:8}}><Ionicons name="chevron-back" size={20} color={c.accent}/></Pressable><Text style={{color:c.text,fontWeight:'700'}}>{day}</Text><Pressable accessibilityLabel="Next day" onPress={()=>changeDay(1)} style={{padding:8}}><Ionicons name="chevron-forward" size={20} color={c.accent}/></Pressable></View>
+      <GapSessionStatus diagnostics={a?.session_diagnostics} day={day}/>
       <Card tint={d&&d.net_pnl<0?c.red:c.green} style={{padding:Spacing.lg}}><Label>Net paper P&L · {day}</Label><Text style={{color:d&&d.net_pnl<0?c.red:c.green,fontSize:34,fontWeight:'800',letterSpacing:-1,marginTop:8,...Type.numeric}}>{money(d?.net_pnl)}</Text><Text style={{color:c.dim,fontSize:11,marginTop:5}}>{d?`${d.entries} entries · ${d.closed_trades} closed trades · fees included`:'No forward observations recorded for this date.'}</Text></Card>
       <View style={{marginTop:8}}><StatRow><StatCard label="Realized" value={money(d?.realized_pnl)}/><StatCard label="Open P&L change" value={money(d?.unrealized_change)}/></StatRow></View>
       <View style={{marginTop:8}}><StatRow><StatCard label="Current equity" value={money(a?.equity)}/><StatCard label="Fees paid" value={money(d?.fees)}/></StatRow></View>
