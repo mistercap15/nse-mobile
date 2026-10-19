@@ -2,6 +2,7 @@ import React,{useEffect,useState} from 'react';
 import {ScrollView,View,Text,TextInput,Pressable} from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg,{Polyline,Line,Text as SvgText} from 'react-native-svg';
+import {HedgeInbox} from '@/components/HedgeInbox';
 import {HedgeGuidance} from '@/components/HedgeGuidance';
 import {StockSearch} from '@/components/StockSearch';
 import {Card} from '@/components/ui';
@@ -25,6 +26,7 @@ export default function Protection(){
  <Card style={{padding:18,marginTop:24}}><Text style={{color:c.soft,fontSize:12,marginBottom:9}}>Stock · {symbol}</Text><View pointerEvents={busy?'none':'auto'}><StockSearch onSelect={setSymbol}/></View><Text style={{color:c.soft,fontSize:12,marginTop:18}}>Contract month</Text><View style={{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:9}}>{contracts.map(k=><Pressable accessibilityRole="button" accessibilityState={{selected:contract===k.instrumentKey}} disabled={busy} key={k.instrumentKey} onPress={()=>change(setContract,k.instrumentKey)} style={{paddingVertical:11,paddingHorizontal:12,borderRadius:10,borderWidth:1,borderColor:contract===k.instrumentKey?c.accent:c.border,backgroundColor:contract===k.instrumentKey?c.accent+'15':c.bg}}><Text style={{color:contract===k.instrumentKey?c.accent:c.soft,fontSize:12,fontWeight:'700'}}>{month(k.expiryDate)}</Text></Pressable>)}</View>{loading&&hint('Loading listed contracts…')}
  <View style={{flexDirection:'row',gap:14,marginTop:18}}>{[['Lots',lots,setLots],['Your purchase price ₹',entry,setEntry]].map(([label,value,setter]:any)=><View key={label} style={{flex:1}}><Text style={{color:c.soft,fontSize:12}}>{label}</Text><TextInput accessibilityLabel={label} editable={!busy} keyboardType="decimal-pad" value={value} onChangeText={v=>change(setter,v)} style={{color:c.text,fontSize:18,fontWeight:'600',backgroundColor:c.bg,borderWidth:1,borderColor:c.border,borderRadius:10,padding:12,marginTop:9}}/></View>)}</View>
  <Pressable accessibilityRole="button" disabled={busy||loading||!contract} onPress={calculate} style={{backgroundColor:c.accent,borderRadius:12,padding:16,marginTop:20,opacity:busy||loading||!contract?.5:1,flexDirection:'row',gap:10,alignItems:'center',justifyContent:'center'}}><Ionicons name="shield-checkmark-outline" size={18} color="#fff"/><Text style={{color:'#fff',fontWeight:'800',fontSize:14}}>{busy?'Finding your put…':'Find my protection'}</Text></Pressable></Card>
+ {<HedgeInbox data={data}/>}
  {!!error&&<Text accessibilityRole="alert" style={{color:c.red,fontSize:13,lineHeight:20,marginTop:18}}>{error}</Text>}
  {!data&&!busy&&!error&&<View style={{alignItems:'center',paddingVertical:38}}><Ionicons name="shield-outline" size={36} color={c.dim}/>{hint('Hedge guidance. Compare puts. See your payoff.')}<Text style={{color:c.dim,fontSize:11,marginTop:8}}>Real Upstox quotes · No orders placed</Text></View>}
  {data&&<HedgeGuidance data={data} put={put}/>}
