@@ -75,18 +75,12 @@ function Gate() {
           {/* OAuth hand-back; renders headerless and replaces itself with Home. */}
           <Stack.Screen name="upstox/connected" options={{ headerShown: false }} />
           <Stack.Screen name="stock/[symbol]" options={{ title: "Stock" }} />
-          <Stack.Screen name="research/protection-tracked" options={{ title: "Tracked Stocks" }} />
-            <Stack.Screen name="research/protection-detail" options={{ title: "Position Protection" }} />
-            <Stack.Screen name="research/protection" options={{ title: "Futures Protection" }} />
           <Stack.Screen name="research/gap-paper" options={{ title: "Gap Pullback · Paper" }} />
           <Stack.Screen name="research/gap-paper-history" options={{ title: "Historical pilot" }} />
           <Stack.Screen name="research/screener" options={{ title: "Screener" }} />
           <Stack.Screen name="research/sector-rotation" options={{ title: "Sector Rotation" }} />
           <Stack.Screen name="research/calendar" options={{ title: "Calendar" }} />
           <Stack.Screen name="research/backtest" options={{ title: "Backtest" }} />
-          <Stack.Screen name="research/fib-bot" options={{ title: "Fib Bot" }} />
-          <Stack.Screen name="research/fib-5m" options={{ title: "5-Min Fib" }} />
-          <Stack.Screen name="research/crypto-fib" options={{ title: "Crypto Fib" }} />
         </Stack>
       ) : (
         <LoginScreen onAuthenticated={handleAuthed} />

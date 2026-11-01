@@ -16,7 +16,6 @@ const LINKS: {
   desc: string;
   icon: React.ComponentProps<typeof Ionicons>["name"];
 }[] = [
-  { href: "/research/protection", title: "Futures Protection", desc: "Recommended targets, purchased puts and expiry payoff plans", icon: "shield-checkmark-outline" },
   { href: "/research/gap-paper", title: "Gap Pullback · Paper", desc: "Five-stock research results, scanner status and hypothetical trades — no live orders", icon: "analytics-outline" },
   {
     href: "/research/screener",
@@ -41,24 +40,6 @@ const LINKS: {
     title: "Backtest",
     desc: "Run the seasonal system over the snapshot and compare it to the benchmark",
     icon: "trending-up-outline",
-  },
-  {
-    href: "/research/fib-bot",
-    title: "Fib Bot",
-    desc: "Live Fibonacci signal on Nifty futures — what the bot would do right now",
-    icon: "hardware-chip-outline",
-  },
-  {
-    href: "/research/fib-5m",
-    title: "5-Min Fib",
-    desc: "The same strategy on 5-minute bars — fills the idle time between hourly setups",
-    icon: "timer-outline",
-  },
-  {
-    href: "/research/crypto-fib",
-    title: "Crypto Fib",
-    desc: "The same swing-Fib strategy on Delta perpetuals — BTC and ETH, testnet",
-    icon: "logo-bitcoin",
   },
 ];
 
