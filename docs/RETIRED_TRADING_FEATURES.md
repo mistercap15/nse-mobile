@@ -1,6 +1,6 @@
 # Retired Trading Features
 
-Futures Protection, Fib Bot, 5-Min Fib and Crypto Fib were retired on 2026-11-01
+Futures Protection, Fib Bot, 5-Min Fib, Crypto Fib and Gap Pullback Paper were retired on 2026-11-01
 after the owner destroyed the trading droplet. They are absent from Research.
 Old screen paths redirect to Research without mounting polling/credential-sync UI.
 
@@ -23,3 +23,8 @@ The dashboard must also deploy its 410 API stubs to protect outdated app builds.
 
 Hiding features is not broker order cancellation. Do not delete device storage
 or enable any bot while restoring archived UI.
+
+The Gap Paper supplement also preserves the historical-pilot screen, comparison
+and session-status components, helpers and bundled historical results. Both old
+Gap Paper deep links redirect to Research. The dashboard scanner/account/pilot
+APIs return 410 and cannot pause, resume, reset or contact remote storage.
