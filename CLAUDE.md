@@ -84,7 +84,7 @@ screen** — that mistake has been made and fixed twice.
 | `checklist.js` | 120 | Pre-trade checks, shared by Early Entry and Playbook |
 | `promoter.js` | 72 | Filings snapshot access |
 | `dataset.js` | 57 | `loadUniverse()` |
-| `events.js` | 41 | F&O expiry (last Thursday), event calendar |
+| `events.js` | 41 | F&O expiry (last Tuesday from Sep 2025; previous trading day if that day is a holiday), event calendar |
 
 ### `levels.js` — one engine, three strategies
 
@@ -430,7 +430,9 @@ caught bugs the tests missed: the PRIME casing, `lotSize` nulls, margin-vs-notio
 sizing, and five separate qualifier bugs. Unit tests confirm the logic you thought of.
 
 **Dates are IST.** Use `istDay()`; a run just after midnight UTC otherwise shifts the
-window by a day. F&O expiry is the last Thursday (`events.js: lastThursday`).
+window by a day. From September 2025, NSE F&O monthly expiry is the last Tuesday, rolled
+back to the previous trading day when that day is a holiday. This app displays
+`calendar.expiry` from the NSE-Dashboard API and does not compute expiry itself.
 
 ---
 
